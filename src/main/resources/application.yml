@@ -15,6 +15,7 @@ langchain4j:
 bible:
   data:
     json-path: ${BIBLE_JSON_PATH:classpath:bible/bible_krv.json}
+    asv-json-path: ${BIBLE_ASV_JSON_PATH:classpath:bible/bible_asv.json}
   rag:
     max-results: 3
     min-score: 0.6

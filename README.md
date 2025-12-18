@@ -1,6 +1,6 @@
 # Bible AI
 
-A conversational Bible study agent for the Korean Revised Version (개역개정) Bible. Built with Spring Boot, LangChain4j, and Google Gemini AI.
+A conversational Bible study agent supporting both Korean Revised Version (개역개정) and American Standard Version (ASV) Bibles. Built with Spring Boot, LangChain4j, and Google Gemini AI.
 
 ## Features
 
@@ -18,10 +18,12 @@ A conversational Bible study agent for the Korean Revised Version (개역개정)
 - **Cursor-like UI**: Split-pane interface with conversation on left, preview on right
 
 ### Advanced Features
+- **Multi-language Support**: Korean (개역개정) and English (ASV) Bible versions
 - **Filtered Statistics**: Search by testament (구약/신약) and book type (선지서/복음서/서신서)
-- **Smart Context Retrieval**: Automatically finds relevant verses using semantic search
+- **Semantic Search Tool**: Embedding-based search available as a tool (Reverse RAG pattern)
 - **Multi-turn Conversations**: Maintains context across multiple questions within a session
 - **Error Recovery**: Automatically clears corrupted sessions to prevent error propagation
+- **Smart Memory Management**: Auto-cleanup to prevent Gemini API function calling issues
 
 ## Architecture
 
@@ -29,21 +31,25 @@ A conversational Bible study agent for the Korean Revised Version (개역개정)
 - **Backend**: Spring Boot 3.5.4 with Java 25
 - **AI Framework**: LangChain4j 1.2.0
 - **LLM**: Google Gemini 2.5 Flash (via `langchain4j-google-ai-gemini`)
-- **Bible Data**: 개역개정 (Korean Revised Version) - 66 books, 31,173 verses
+- **Bible Data**: 
+  - 개역개정 (Korean Revised Version) - 66 books, 31,173 verses
+  - ASV (American Standard Version) - 66 books, 85,920 verses
 - **RAG**: In-memory embedding store with All-MiniLM-L6-v2 quantized embeddings (ONNX-based)
+  - Uses Reverse RAG pattern: embedding search available as a tool, not automatic
 - **Frontend**: React 18 (in-browser, served as static files)
 
 ### Key Components
 - **BibleAgent**: LangChain4j AI service with session-based chat memory
-- **SessionMemoryManager**: Manages isolated conversation history per session (auto-cleanup after 30 min)
-- **BibleTools**: Tool-calling interface with 8 tools:
+- **SessionMemoryManager**: Manages isolated conversation history per session (max 10 messages, auto-cleanup after 30 min)
+- **BibleTools**: Tool-calling interface with 9 tools:
   - `getVerse`: Get specific verse
   - `getChapter`: Get all verses in a chapter
   - `getVerseRange`: Get verses in a range
   - `getVerseWithContext`: Get verse with surrounding context
-  - `searchVerses`: Search by keyword
-  - `searchByPhrase`: Search by phrase
+  - `searchVerses`: Search by keyword (preferred for Korean text)
+  - `searchByPhrase`: Search by phrase (preferred for Korean text)
   - `getKeywordStatistics`: Get statistics with optional filters
+  - `searchVersesBySemanticSimilarity`: Semantic search using embeddings (use with caution for Korean)
   - `getAllBooks`: List all Bible books
 - **BibleService**: Loads and queries Bible data from JSON file
 - **RAGConfig**: Loads and embeds Bible text for semantic retrieval using ONNX quantized model
@@ -55,6 +61,7 @@ A conversational Bible study agent for the Korean Revised Version (개역개정)
    export GEMINI_API_KEY=your-google-api-key
    export GEMINI_MODEL_NAME=gemini-2.5-flash-lite  # Optional, defaults to gemini-2.5-flash-lite
    export BIBLE_JSON_PATH=classpath:bible/bible_krv.json  # Optional
+   export BIBLE_ASV_JSON_PATH=classpath:bible/bible_asv.json  # Optional
    ```
 
 2. **Build and Run**:
@@ -127,14 +134,22 @@ src/main/java/io/github/nicechester/bibleai/
 
 src/main/resources/
 ├── bible/           # Bible data:
-│   └── bible_krv.json         # Full Bible text (66 books, 31,173 verses)
+│   ├── bible_krv.json         # Korean Bible (개역개정) - 66 books, 31,173 verses
+│   └── bible_asv.json         # English Bible (ASV) - 66 books, 85,920 verses
 └── static/          # Frontend:
     └── index.html             # React 18 SPA with session management
 ```
 
 ## Bible Data
 
-The Bible data is stored in `src/main/resources/bible/bible_krv.json` with the following structure:
+The Bible data is stored in JSON files in `src/main/resources/bible/`:
+
+- **bible_krv.json**: Korean Revised Version (개역개정) - 66 books, 31,173 verses
+- **bible_asv.json**: American Standard Version (ASV) - 66 books, 85,920 verses
+
+Both versions are loaded into the embedding store for semantic search. The English version works better with the All-MiniLM-L6-v2 embedding model, improving semantic search accuracy.
+
+The JSON structure:
 
 ```json
 {
@@ -203,44 +218,59 @@ Get Bible configuration and version.
 
 ### Data Processing
 
-The Bible text files were parsed from UTF-8 text files using `parse_bible.py`:
+The Bible text files were parsed using Python scripts:
 
+**Korean Bible (개역개정):**
 ```bash
 cd trashcan/bible
 python3 parse_bible.py
 ```
-
-This generates `bible_krv.json` from the text files in `trashcan/bible/data/개역개정-text-utf8/`.
-
-The parsing script:
 - Converts EUC-KR encoded files to UTF-8
 - Parses verse format: `책약자:장:절 <제목> 본문`
-- Generates structured JSON with 66 books and 31,173 verses
+- Generates `bible_krv.json` with 66 books and 31,173 verses
+
+**English Bible (ASV):**
+```bash
+cd trashcan/bible
+python3 parse_asv.py
+```
+- Parses ASV text format: `Genesis`, `Chapter 1`, `1 In the beginning...`
+- Generates `bible_asv.json` with 66 books and 85,920 verses
 
 ### RAG Configuration
 
 - **Embedding Model**: All-MiniLM-L6-v2 (quantized, ONNX-based)
+- **Bible Versions**: Both Korean (개역개정) and English (ASV) loaded into embedding store
 - **Chunk size**: 500 characters
 - **Overlap**: 50 characters
 - **Max results**: 3 retrieved segments per query
 - **Min score**: 0.6 (similarity threshold)
+- **Pattern**: Reverse RAG - embedding search available as a tool, not automatic
 
-**Note**: The ONNX runtime logs during startup are normal - they indicate the quantized embedding model is being loaded. This model runs locally without requiring external API calls.
+**Note**: 
+- The ONNX runtime logs during startup are normal - they indicate the quantized embedding model is being loaded
+- This model runs locally without requiring external API calls
+- English text works better with the embedding model, improving semantic search accuracy
+- Korean text semantic search has limitations; keyword-based tools are preferred
 
 ### Available Tools
 
-The AI agent has access to 8 tools:
+The AI agent has access to 9 tools:
 
 1. **getVerse(bookName, chapter, verse)**: Get a specific verse
 2. **getChapter(bookName, chapter)**: Get all verses in a chapter
 3. **getVerseRange(bookName, chapter, startVerse, endVerse)**: Get verses in a range
 4. **getVerseWithContext(bookName, chapter, verse, contextVerses)**: Get verse with surrounding context
-5. **searchVerses(keyword)**: Search for verses containing a keyword
-6. **searchByPhrase(phrase)**: Search for verses containing a phrase
+5. **searchVerses(keyword)**: Search for verses containing a keyword (PREFERRED for Korean text)
+6. **searchByPhrase(phrase)**: Search for verses containing a phrase (PREFERRED for Korean text)
 7. **getKeywordStatistics(keyword, testament, bookType)**: Get statistics with optional filters
    - `testament`: 1 for 구약, 2 for 신약, null for all
    - `bookType`: "선지서", "복음서", "서신서", null for all
-8. **getAllBooks()**: List all Bible books
+8. **searchVersesBySemanticSimilarity(query, maxResults)**: Semantic search using embeddings
+   - Use with caution for Korean text (embedding model limitations)
+   - Works better with English queries
+   - Always verify results are from correct books
+9. **getAllBooks()**: List all Bible books
 
 ### Mermaid Diagram Support
 
@@ -256,10 +286,12 @@ The AI can generate Mermaid diagrams for:
 See [USAGE_EXAMPLES.md](./USAGE_EXAMPLES.md) for detailed comparison with simple Gemini chat.
 
 Key advantages:
-- ✅ **Accurate Data Access**: Direct access to actual Bible database (66 books, 31,173 verses)
+- ✅ **Accurate Data Access**: Direct access to actual Bible database (Korean + English, ~117,000 verses)
+- ✅ **Multi-language Support**: Both Korean and English Bible versions
 - ✅ **Statistics**: Precise word frequency analysis with filtering
 - ✅ **Context**: Automatic surrounding verse context
 - ✅ **Structured Search**: Systematic search across entire Bible
+- ✅ **Semantic Search**: Embedding-based search available as a tool (works better with English)
 - ✅ **Conversation**: Session-based multi-turn dialogue support
 
 ## Configuration
@@ -294,6 +326,10 @@ bible:
 bible:
   data:
     json-path: ${BIBLE_JSON_PATH:classpath:bible/bible_krv.json}
+    asv-json-path: ${BIBLE_ASV_JSON_PATH:classpath:bible/bible_asv.json}
+  rag:
+    max-results: 3
+    min-score: 0.6
 ```
 
 ## Troubleshooting
@@ -320,14 +356,24 @@ bible:
 - **Fix**: Sessions are automatically cleared on errors
 - **Action**: Start a new session with the + button
 
+**5. Gemini API Function Calling Errors**
+- **Cause**: "function call turn comes immediately after a user turn" error
+- **Explanation**: Gemini API requires function calls to follow specific message order
+- **Fix**: Session memory automatically cleared when reaching 8 messages to prevent this
+- **Action**: No action needed - handled automatically
+
 ### Performance Notes
 
-- RAG retrieval adds ~100-200ms per query
+- Semantic search adds ~100-200ms per query (when used as tool)
 - Session cleanup is non-blocking (scheduled task every 10 minutes)
-- ChatMemory limited to 20 messages per session
+- ChatMemory limited to 10 messages per session (reduced to prevent Gemini API issues)
+- Auto-cleanup at 8 messages to prevent function calling errors
 - Embedding model loads once at startup (ONNX initialization)
+- Both Korean and English Bibles loaded into embedding store (~117,000 verses total)
 - Frontend is fully client-side (no server-side rendering)
 
 ## License
 
-This project uses the Korean Revised Version (개역개정) Bible text.
+This project uses:
+- Korean Revised Version (개역개정) Bible text
+- American Standard Version (ASV) Bible text (Public Domain)
