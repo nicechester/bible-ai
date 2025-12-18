@@ -1,13 +1,13 @@
 # Bible AI
 
-A conversational Bible study agent supporting both Korean Revised Version (개역개정) and American Standard Version (ASV) Bibles. Built with Spring Boot, LangChain4j, and Google Gemini AI.
+A conversational Bible study agent supporting both Korean Revised Version (KRV) and American Standard Version (ASV) Bibles. Built with Spring Boot, LangChain4j, and Google Gemini AI.
 
 ## Features
 
 ### Core Capabilities
 - **Natural Language Bible Search**: Search and explore the Bible through natural language
 - **Verse Lookup**: Get specific verses by book, chapter, and verse number
-- **Verse Range**: Get multiple verses in a range (e.g., 창세기 1:1-10)
+- **Verse Range**: Get multiple verses in a range (e.g., Genesis 1:1-10)
 - **Context-Aware Reading**: Get verses with surrounding context for better understanding
 - **Keyword Search**: Find verses containing specific keywords or phrases
 - **Chapter Reading**: Read entire chapters at once
@@ -18,8 +18,8 @@ A conversational Bible study agent supporting both Korean Revised Version (개�
 - **Cursor-like UI**: Split-pane interface with conversation on left, preview on right
 
 ### Advanced Features
-- **Multi-language Support**: Korean (개역개정) and English (ASV) Bible versions
-- **Filtered Statistics**: Search by testament (구약/신약) and book type (선지서/복음서/서신서)
+- **Multi-language Support**: Korean (KRV) and English (ASV) Bible versions
+- **Filtered Statistics**: Search by testament (Old Testament/New Testament) and book type (Prophets/Gospels/Epistles)
 - **Semantic Search Tool**: Embedding-based search available as a tool (Reverse RAG pattern)
 - **Multi-turn Conversations**: Maintains context across multiple questions within a session
 - **Error Recovery**: Automatically clears corrupted sessions to prevent error propagation
@@ -32,7 +32,7 @@ A conversational Bible study agent supporting both Korean Revised Version (개�
 - **AI Framework**: LangChain4j 1.2.0
 - **LLM**: Google Gemini 2.5 Flash (via `langchain4j-google-ai-gemini`)
 - **Bible Data**: 
-  - 개역개정 (Korean Revised Version) - 66 books, 31,173 verses
+  - KRV (Korean Revised Version) - 66 books, 31,173 verses
   - ASV (American Standard Version) - 66 books, 85,920 verses
 - **RAG**: In-memory embedding store with All-MiniLM-L6-v2 quantized embeddings (ONNX-based)
   - Uses Reverse RAG pattern: embedding search available as a tool, not automatic
@@ -78,40 +78,40 @@ A conversational Bible study agent supporting both Korean Revised Version (개�
 ### Query Examples
 
 **Verse Lookup:**
-- "창세기 1장 1절을 보여줘"
-- "요한복음 3장 16절"
+- "Show me Genesis 1:1"
+- "John 3:16"
 
 **Verse Range:**
-- "창세기 1장 1-10절"
-- "마태복음 5장 1-12절"
+- "Genesis 1:1-10"
+- "Matthew 5:1-12"
 
 **Context-Aware Reading:**
-- "요한복음 3:16 주변 구절도 보여줘"
-- "사랑에 대한 구절 주변 맥락과 함께"
+- "Show me John 3:16 with surrounding verses"
+- "Show me verses about love with context"
 
 **Chapter Reading:**
-- "마태복음 5장을 읽어줘"
-- "시편 23장 전체"
+- "Read Matthew chapter 5"
+- "Psalm 23 entire chapter"
 
 **Keyword Search:**
-- "사랑에 대한 구절을 찾아줘"
-- "믿음에 관한 말씀"
-- "하나님의 은혜"
+- "Find verses about love"
+- "Verses about faith"
+- "God's grace"
 
 **Statistics with Filters:**
-- "사랑이라는 단어가 성경에 몇 번 나와?"
-- "사랑이라는 단어가 구약 선지서에 몇 번 나와?"
-- "믿음이 신약 복음서에 몇 번 나와?"
+- "How many times does the word 'love' appear in the Bible?"
+- "How many times does 'love' appear in Old Testament prophets?"
+- "How many times does 'faith' appear in New Testament gospels?"
 
 **Topic Exploration:**
-- "예수님의 계보를 그림으로 설명해줘"
-- "예수님의 비유를 설명해줘"
-- "십계명이 뭐야?"
-- "구약과 신약의 차이는?"
+- "Explain Jesus' genealogy with a diagram"
+- "Explain Jesus' parables"
+- "What are the Ten Commandments?"
+- "What's the difference between Old and New Testament?"
 
 **Genealogy & Diagrams:**
-- "예수님의 계보를 그림으로 설명해줘"
-- "아브라함부터 다윗까지의 계보"
+- "Explain Jesus' genealogy with a diagram"
+- "Genealogy from Abraham to David"
 
 ## Project Structure
 
@@ -134,7 +134,7 @@ src/main/java/io/github/nicechester/bibleai/
 
 src/main/resources/
 ├── bible/           # Bible data:
-│   ├── bible_krv.json         # Korean Bible (개역개정) - 66 books, 31,173 verses
+│   ├── bible_krv.json         # Korean Bible (KRV) - 66 books, 31,173 verses
 │   └── bible_asv.json         # English Bible (ASV) - 66 books, 85,920 verses
 └── static/          # Frontend:
     └── index.html             # React 18 SPA with session management
@@ -144,7 +144,7 @@ src/main/resources/
 
 The Bible data is stored in JSON files in `src/main/resources/bible/`:
 
-- **bible_krv.json**: Korean Revised Version (개역개정) - 66 books, 31,173 verses
+- **bible_krv.json**: Korean Revised Version (KRV) - 66 books, 31,173 verses
 - **bible_asv.json**: American Standard Version (ASV) - 66 books, 85,920 verses
 
 Both versions are loaded into the embedding store for semantic search. The English version works better with the All-MiniLM-L6-v2 embedding model, improving semantic search accuracy.
@@ -153,13 +153,13 @@ The JSON structure:
 
 ```json
 {
-  "version": "개역개정",
+  "version": "KRV",
   "language": "ko",
   "totalBooks": 66,
   "books": [
     {
-      "bookShort": "창",
-      "bookName": "창세기",
+      "bookShort": "Gen",
+      "bookName": "Genesis",
       "testament": 1,
       "bookNumber": 1,
       "chapters": [
@@ -168,8 +168,8 @@ The JSON structure:
           "verses": [
             {
               "verse": 1,
-              "title": "천지 창조",
-              "text": "태초에 하나님이 천지를 창조하시니라"
+              "title": "Creation",
+              "text": "In the beginning God created the heavens and the earth"
             }
           ]
         }
@@ -187,7 +187,7 @@ Execute natural language queries about the Bible.
 **Request:**
 ```json
 {
-   "query": "창세기 1장 1절을 보여줘",
+   "query": "Show me Genesis 1:1",
    "sessionId": "session-1702857890-abc123"  // Optional
  }
 ```
@@ -195,7 +195,7 @@ Execute natural language queries about the Bible.
 **Response:**
 ```json
 {
-   "summary": "창세기 1:1 <천지 창조> 태초에 하나님이 천지를 창조하시니라...",
+   "summary": "Genesis 1:1 <Creation> In the beginning God created the heavens and the earth...",
    "results": null,
    "sql": null,
    "success": true
@@ -208,7 +208,7 @@ Get Bible configuration and version.
 **Response:**
 ```json
 {
-   "version": "개역개정",
+   "version": "KRV",
    "language": "ko",
    "totalBooks": "66"
  }
@@ -220,13 +220,13 @@ Get Bible configuration and version.
 
 The Bible text files were parsed using Python scripts:
 
-**Korean Bible (개역개정):**
+**Korean Bible (KRV):**
 ```bash
 cd trashcan/bible
 python3 parse_bible.py
 ```
 - Converts EUC-KR encoded files to UTF-8
-- Parses verse format: `책약자:장:절 <제목> 본문`
+- Parses verse format: `book_abbreviation:chapter:verse <title> text`
 - Generates `bible_krv.json` with 66 books and 31,173 verses
 
 **English Bible (ASV):**
@@ -240,7 +240,7 @@ python3 parse_asv.py
 ### RAG Configuration
 
 - **Embedding Model**: All-MiniLM-L6-v2 (quantized, ONNX-based)
-- **Bible Versions**: Both Korean (개역개정) and English (ASV) loaded into embedding store
+- **Bible Versions**: Both Korean (KRV) and English (ASV) loaded into embedding store
 - **Chunk size**: 500 characters
 - **Overlap**: 50 characters
 - **Max results**: 3 retrieved segments per query
@@ -264,8 +264,8 @@ The AI agent has access to 9 tools:
 5. **searchVerses(keyword)**: Search for verses containing a keyword (PREFERRED for Korean text)
 6. **searchByPhrase(phrase)**: Search for verses containing a phrase (PREFERRED for Korean text)
 7. **getKeywordStatistics(keyword, testament, bookType)**: Get statistics with optional filters
-   - `testament`: 1 for 구약, 2 for 신약, null for all
-   - `bookType`: "선지서", "복음서", "서신서", null for all
+   - `testament`: 1 for Old Testament, 2 for New Testament, null for all
+   - `bookType`: "Prophets", "Gospels", "Epistles", null for all
 8. **searchVersesBySemanticSimilarity(query, maxResults)**: Semantic search using embeddings
    - Use with caution for Korean text (embedding model limitations)
    - Works better with English queries
@@ -275,11 +275,11 @@ The AI agent has access to 9 tools:
 ### Mermaid Diagram Support
 
 The AI can generate Mermaid diagrams for:
-- Genealogy (예수님의 계보)
+- Genealogy (Jesus' genealogy)
 - Relationships between concepts
 - Visual representations of Bible structures
 
-**Important**: Diagrams use `flowchart TD` syntax with Korean text properly quoted: `A["한글텍스트"]`
+**Important**: Diagrams use `flowchart TD` syntax with text properly quoted: `A["Text"]`
 
 ## Advantages Over Simple Chat
 
@@ -342,9 +342,9 @@ bible:
 - **Action**: No action needed, these logs are expected
 
 **2. Mermaid Diagram Syntax Errors**
-- **Cause**: Incorrect Mermaid syntax or Korean character encoding
-- **Fix**: System prompt has been updated to use `flowchart TD` with quoted Korean text
-- **Format**: `A["한글텍스트"]` (double quotes required)
+- **Cause**: Incorrect Mermaid syntax or character encoding
+- **Fix**: System prompt has been updated to use `flowchart TD` with quoted text
+- **Format**: `A["Text"]` (double quotes required)
 
 **3. "parts is null" Error**
 - **Cause**: Complex queries trying to process multiple items simultaneously
@@ -381,5 +381,5 @@ bible:
 MIT License - see [LICENSE](LICENSE) file for details.
 
 This project uses:
-- Korean Revised Version (개역개정) Bible text
+- Korean Revised Version (KRV) Bible text
 - American Standard Version (ASV) Bible text (Public Domain)
