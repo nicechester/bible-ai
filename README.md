@@ -372,7 +372,13 @@ bible:
 - Both Korean and English Bibles loaded into embedding store (~117,000 verses total)
 - Frontend is fully client-side (no server-side rendering)
 
+## Additional Resources
+
+- [Blue Letter Bible - Apps & Tools](https://www.blueletterbible.org/apps-tools.cfm) - Comprehensive Bible study tools and resources
+
 ## License
+
+MIT License - see [LICENSE](LICENSE) file for details.
 
 This project uses:
 - Korean Revised Version (개역개정) Bible text
