@@ -45,53 +45,21 @@ public class RAGConfig {
             EmbeddingModel embeddingModel,
             @Value("${langchain4j.splitter.text.maxSegmentSize:500}") int maxSegmentSize,
             @Value("${langchain4j.splitter.text.maxOverlapSize:50}") int maxOverlapSize,
-            @Value("${bible.data.json-path}") String bibleJsonPath) {
+            @Value("${bible.data.json-path}") String bibleJsonPath,
+            @Value("${bible.data.asv-json-path:classpath:bible/bible_asv.json}") String asvJsonPath) {
         
         try {
             StringBuilder bibleContent = new StringBuilder();
             
-            // Load Bible JSON file
-            Resource resource = resourceLoader.getResource(bibleJsonPath);
-            InputStream inputStream = resource.getInputStream();
-            JsonNode root = objectMapper.readTree(inputStream);
+            // Load Korean Bible (개역개정)
+            loadBibleJson(bibleJsonPath, bibleContent, "KRV");
             
-            JsonNode booksNode = root.get("books");
-            if (booksNode != null && booksNode.isArray()) {
-                for (JsonNode bookNode : booksNode) {
-                    String bookName = bookNode.get("bookName").asText();
-                    String bookShort = bookNode.get("bookShort").asText();
-                    
-                    JsonNode chaptersNode = bookNode.get("chapters");
-                    if (chaptersNode != null && chaptersNode.isArray()) {
-                        for (JsonNode chapterNode : chaptersNode) {
-                            int chapterNum = chapterNode.get("chapter").asInt();
-                            
-                            JsonNode versesNode = chapterNode.get("verses");
-                            if (versesNode != null && versesNode.isArray()) {
-                                for (JsonNode verseNode : versesNode) {
-                                    int verseNum = verseNode.get("verse").asInt();
-                                    String text = verseNode.has("text") ? verseNode.get("text").asText() : "";
-                                    String title = verseNode.has("title") && !verseNode.get("title").isNull() 
-                                        ? verseNode.get("title").asText() : null;
-                                    
-                                    // Format: "창세기 1:1 <제목> 본문"
-                                    bibleContent.append(bookName)
-                                        .append(" ").append(chapterNum).append(":").append(verseNum);
-                                    if (title != null && !title.isEmpty()) {
-                                        bibleContent.append(" <").append(title).append(">");
-                                    }
-                                    if (text != null && !text.isEmpty()) {
-                                        bibleContent.append(" ").append(text);
-                                    }
-                                    bibleContent.append("\n");
-                                }
-                            }
-                        }
-                    }
-                }
+            // Load English Bible (ASV) - better for embedding model
+            try {
+                loadBibleJson(asvJsonPath, bibleContent, "ASV");
+            } catch (Exception e) {
+                log.warn("Failed to load ASV Bible, continuing with Korean only: {}", e.getMessage());
             }
-            
-            inputStream.close();
             
             if (bibleContent.length() == 0) {
                 log.warn("No Bible content loaded. RAG will not have Bible context.");
@@ -123,6 +91,66 @@ public class RAGConfig {
             log.error("Failed to load Bible data for RAG", e);
             return new InMemoryEmbeddingStore<>();
         }
+    }
+    
+    private void loadBibleJson(String jsonPath, StringBuilder content, String version) throws Exception {
+        Resource resource = resourceLoader.getResource(jsonPath);
+        if (!resource.exists()) {
+            log.warn("Bible JSON file not found: {}", jsonPath);
+            return;
+        }
+        
+        InputStream inputStream = resource.getInputStream();
+        JsonNode root = objectMapper.readTree(inputStream);
+        
+        String versionName = root.has("version") ? root.get("version").asText() : version;
+        log.info("Loading {} Bible from: {}", versionName, jsonPath);
+        
+        JsonNode booksNode = root.get("books");
+        if (booksNode != null && booksNode.isArray()) {
+            int bookCount = 0;
+            int verseCount = 0;
+            
+            for (JsonNode bookNode : booksNode) {
+                String bookName = bookNode.get("bookName").asText();
+                String bookShort = bookNode.get("bookShort").asText();
+                
+                JsonNode chaptersNode = bookNode.get("chapters");
+                if (chaptersNode != null && chaptersNode.isArray()) {
+                    for (JsonNode chapterNode : chaptersNode) {
+                        int chapterNum = chapterNode.get("chapter").asInt();
+                        
+                        JsonNode versesNode = chapterNode.get("verses");
+                        if (versesNode != null && versesNode.isArray()) {
+                            for (JsonNode verseNode : versesNode) {
+                                int verseNum = verseNode.get("verse").asInt();
+                                String text = verseNode.has("text") ? verseNode.get("text").asText() : "";
+                                String title = verseNode.has("title") && !verseNode.get("title").isNull() 
+                                    ? verseNode.get("title").asText() : null;
+                                
+                                // Format: "[ASV] Genesis 1:1 <Title> Text" or "[KRV] 창세기 1:1 <제목> 본문"
+                                content.append("[").append(versionName).append("] ")
+                                    .append(bookName)
+                                    .append(" ").append(chapterNum).append(":").append(verseNum);
+                                if (title != null && !title.isEmpty()) {
+                                    content.append(" <").append(title).append(">");
+                                }
+                                if (text != null && !text.isEmpty()) {
+                                    content.append(" ").append(text);
+                                }
+                                content.append("\n");
+                                verseCount++;
+                            }
+                        }
+                    }
+                    bookCount++;
+                }
+            }
+            
+            log.info("Loaded {} books, {} verses from {} Bible", bookCount, verseCount, versionName);
+        }
+        
+        inputStream.close();
     }
 
     @Bean

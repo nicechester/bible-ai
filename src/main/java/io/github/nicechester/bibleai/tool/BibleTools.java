@@ -2,10 +2,17 @@ package io.github.nicechester.bibleai.tool;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.agent.tool.Tool;
+import dev.langchain4j.data.embedding.Embedding;
+import dev.langchain4j.data.segment.TextSegment;
+import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.store.embedding.EmbeddingMatch;
+import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
+import dev.langchain4j.store.embedding.EmbeddingStore;
 import io.github.nicechester.bibleai.service.BibleService;
 import io.github.nicechester.bibleai.service.BibleService.VerseResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -19,6 +26,9 @@ public class BibleTools {
     
     private final BibleService bibleService;
     private final ObjectMapper objectMapper;
+    @Qualifier("bibleEmbeddingStore")
+    private final EmbeddingStore<TextSegment> bibleEmbeddingStore;
+    private final EmbeddingModel embeddingModel;
     
     @Tool("Get a specific Bible verse by book name, chapter, and verse number. Returns the verse text with reference (e.g., '창세기 1:1').")
     public String getVerse(String bookName, int chapter, int verse) {
@@ -172,6 +182,46 @@ public class BibleTools {
                 .collect(Collectors.joining(", "));
         } catch (Exception e) {
             log.error("Failed to get all books", e);
+            return "Error: " + e.getMessage();
+        }
+    }
+    
+    @Tool("Search Bible verses using semantic similarity (embedding search). " +
+          "Use this when you need to find verses that are semantically related to a topic, even if they don't contain the exact keyword. " +
+          "This is useful for finding verses about concepts, themes, or ideas. " +
+          "Note: The embedding model has limitations with Korean text, so always verify results are from correct books. " +
+          "If results are from wrong books (e.g., 구약 when asking about 신약), ignore them and use other search tools instead.")
+    public String searchVersesBySemanticSimilarity(String query, int maxResults) {
+        log.info("Searching verses by semantic similarity: {} (maxResults: {})", query, maxResults);
+        try {
+            // Create embedding for the query
+            Embedding queryEmbedding = embeddingModel.embed(query).content();
+            
+            // Search embedding store
+            EmbeddingSearchRequest searchRequest = EmbeddingSearchRequest.builder()
+                    .queryEmbedding(queryEmbedding)
+                    .maxResults(maxResults)
+                    .minScore(0.5)  // Lower threshold for Korean text
+                    .build();
+            
+            List<TextSegment> matches = bibleEmbeddingStore.search(searchRequest).matches().stream()
+                    .map(EmbeddingMatch::embedded)
+                    .toList();
+            
+            if (matches.isEmpty()) {
+                return String.format("No semantically similar verses found for: %s", query);
+            }
+            
+            // Format results
+            StringBuilder sb = new StringBuilder();
+            sb.append("Semantically similar verses for '").append(query).append("':\n\n");
+            for (TextSegment segment : matches) {
+                sb.append(segment.text()).append("\n\n");
+            }
+            
+            return sb.toString();
+        } catch (Exception e) {
+            log.error("Failed to search verses by semantic similarity", e);
             return "Error: " + e.getMessage();
         }
     }

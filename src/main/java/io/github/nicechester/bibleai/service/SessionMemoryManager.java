@@ -18,7 +18,9 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class SessionMemoryManager {
     
-    private static final int MAX_MESSAGES_PER_SESSION = 20;
+    // Reduced to prevent Gemini API function calling issues
+    // Gemini requires function calls to come immediately after user turn or function response
+    private static final int MAX_MESSAGES_PER_SESSION = 10;
     private static final long SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
     
     private final Map<String, SessionMemoryEntry> sessionMemories = new ConcurrentHashMap<>();
