@@ -383,3 +383,8 @@ MIT License - see [LICENSE](LICENSE) file for details.
 This project uses:
 - Korean Revised Version (KRV) Bible text
 - American Standard Version (ASV) Bible text (Public Domain)
+
+---
+
+**Author**: Chester Kim  
+**Date**: December 29, 2025
