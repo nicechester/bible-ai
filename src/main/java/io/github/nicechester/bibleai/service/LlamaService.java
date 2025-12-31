@@ -9,13 +9,11 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
-import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.IOException;
 
 @Log4j2
-@Component
 public class LlamaService {
     private final LlamaModel model;
     private final float temperature;
