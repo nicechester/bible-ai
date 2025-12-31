@@ -107,7 +107,14 @@ public class LlamaChatModel implements ChatModel {
      */
     private String buildToolDescriptions(List<ToolSpecification> tools) {
         StringBuilder sb = new StringBuilder();
+        sb.append("\n\nLANGUAGE INSTRUCTION: ");
+        sb.append("When the user asks in Korean, you MUST respond in Korean. ");
+        sb.append("The Bible data you will receive from tools is from the Korean Revised Version (개역개정) Bible, so the verses will be in Korean. ");
+        sb.append("Always respond in the same language as the user's question.\n");
+        
         sb.append("\n\nAvailable tools/functions you can use:\n");
+        sb.append("These tools search the Korean Revised Version (개역개정) Bible. ");
+        sb.append("All verse text returned will be in Korean.\n");
         for (ToolSpecification tool : tools) {
             sb.append("\nFunction: ").append(tool.name()).append("\n");
             if (tool.description() != null && !tool.description().isEmpty()) {
@@ -137,6 +144,25 @@ public class LlamaChatModel implements ChatModel {
         sb.append("\nIMPORTANT: After calling a function, you will receive the function result. ");
         sb.append("You MUST include the actual data from the function result in your final response to the user. ");
         sb.append("Do not just acknowledge that you called the function - provide the actual answer with the data.\n");
+        
+        sb.append("\nCRITICAL: WHEN USER ASKS TO SEE VERSES (구절을 보여줘, 보여주세요, etc.):\n");
+        sb.append("You MUST show the EXACT original verse text from the tool results. ");
+        sb.append("DO NOT paraphrase, interpret, or summarize the verses. ");
+        sb.append("DO NOT explain what the verses mean - just show the original text. ");
+        sb.append("Copy the verse text EXACTLY as it appears in the tool result. ");
+        sb.append("Include the verse reference (book name, chapter, verse) with each verse. ");
+        sb.append("Example format: \"요한복음 3:1 <제목> 원문 텍스트\" - show the exact text, not your interpretation.\n");
+        
+        sb.append("\nCRITICAL: BOOK NAME ACCURACY:\n");
+        sb.append("When presenting Bible verses, you MUST use the EXACT book names as they appear in the tool results. ");
+        sb.append("DO NOT modify, guess, or translate book names. Copy them exactly.\n");
+        sb.append("Common mistakes to avoid:\n");
+        sb.append("- 에스파니야 (WRONG) → 에스겔 (CORRECT)\n");
+        sb.append("- 마태복문 (WRONG) → 마태복음 (CORRECT)\n");
+        sb.append("- 시лён (WRONG) → 시편 (CORRECT)\n");
+        sb.append("- 잠음 (WRONG) → 잠언 (CORRECT)\n");
+        sb.append("If you are unsure about a book name, use the getAllBooks() function to get the correct list.\n");
+        sb.append("Always copy book names EXACTLY as they appear in the tool results - do not modify them.\n");
         return sb.toString();
     }
     
@@ -470,10 +496,17 @@ public class LlamaChatModel implements ChatModel {
                 ToolExecutionResultMessage toolResult = (ToolExecutionResultMessage) message;
                 prompt.append("</s>");
                 prompt.append("<s>[INST] ");
-                prompt.append("The function '").append(toolResult.toolName()).append("' returned the following result: ");
+                prompt.append("The function '").append(toolResult.toolName()).append("' returned the following result from the Korean Bible (개역개정): ");
                 prompt.append(toolResult.text());
                 prompt.append(" Please provide a clear answer to the user's question based on this result. ");
-                prompt.append("Include the actual data from the result in your response. [/INST]");
+                prompt.append("CRITICAL INSTRUCTIONS:\n");
+                prompt.append("1. If the user asked to see verses (보여줘, 보여주세요, etc.), show the EXACT original verse text. ");
+                prompt.append("DO NOT paraphrase, interpret, or summarize. Copy the verse text EXACTLY as it appears above.\n");
+                prompt.append("2. Use EXACT book names as they appear in the tool result above. ");
+                prompt.append("Do NOT modify, guess, or translate book names. Copy them exactly (e.g., '에스겔' not '에스파니야', '마태복음' not '마태복문').\n");
+                prompt.append("3. Include the actual data from the result in your response.\n");
+                prompt.append("4. Respond in the same language as the user's question (Korean if the user asked in Korean). ");
+                prompt.append("The verse text is in Korean, so present it in Korean. [/INST]");
             }
         }
         
