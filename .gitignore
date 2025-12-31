@@ -94,7 +94,10 @@ coverage/
 
 # ONNX model cache (if downloaded locally)
 .onnx/
-models/
+
+# GGUF model files (keep directory structure)
+src/main/resources/models/*.gguf
+src/main/resources/models/*.GGUF
 
 # Node modules (if any frontend build tools are used)
 node_modules/
