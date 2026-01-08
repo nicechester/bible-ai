@@ -1,6 +1,7 @@
 package io.github.nicechester.bibleai.tool;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
@@ -139,7 +140,10 @@ public class BibleTools {
           "Optional filters: testament (1=구약, 2=신약, null=all) and bookType (e.g., '선지서', '복음서', '서신서', null=all). " +
           "If user mentions '구약' or 'Old Testament', use testament=1. If user mentions '신약' or 'New Testament', use testament=2. " +
           "If user mentions book type like '선지서', use bookType='선지서'. You can combine filters.")
-    public String getKeywordStatistics(String keyword, Integer testament, String bookType) {
+    public String getKeywordStatistics(
+            @P("The keyword to search for") String keyword,
+            @P(value = "Optional: Testament filter (1=Old Testament/구약, 2=New Testament/신약, null=all)", required = false) Integer testament,
+            @P(value = "Optional: Book type filter (e.g., '선지서', '복음서', '서신서', null=all)", required = false) String bookType) {
         log.info("Getting keyword statistics: {} (testament: {}, bookType: {})", keyword, testament, bookType);
         try {
             Map<String, Object> stats = bibleService.getKeywordStatistics(keyword, testament, bookType);

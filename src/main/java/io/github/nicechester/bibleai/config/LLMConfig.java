@@ -2,6 +2,7 @@ package io.github.nicechester.bibleai.config;
 
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
+import dev.langchain4j.model.openai.OpenAiChatModel;
 import io.github.nicechester.bibleai.config.LlamaChatModel;
 import io.github.nicechester.bibleai.service.LlamaService;
 import lombok.extern.log4j.Log4j2;
@@ -13,6 +14,10 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.io.ResourceLoader;
 
+import java.time.Duration;
+import java.util.Map;
+import java.util.UUID;
+
 @Log4j2
 @Configuration
 public class LLMConfig {
@@ -21,6 +26,9 @@ public class LLMConfig {
     @Value("${llm.model.path:}") private String llamaModelPath;
     @Value("${llm.model.ngpu:0}") private int llamaNgpuLayers;
     @Value("${llm.model.temperature:0.7}") private float llamaTemperature;
+    @Value("${langchain4j.llm.openai.url:}") private String openaiUrl;
+    @Value("${langchain4j.llm.openai.model-name:}") private String openaiModelName;
+    @Value("${langchain4j.llm.openai.api-key:}") private String openaiApiKey;
     
     @Autowired(required = false)
     private LlamaService llamaService;
@@ -60,5 +68,23 @@ public class LLMConfig {
         log.info("Creating Llama ChatModel");
         return new LlamaChatModel(llamaService);
     }
+
+    @Bean
+    @Primary
+    @ConditionalOnProperty(name = "langchain4j.llm.provider", havingValue = "openai")
+    public OpenAiChatModel openAiChatModel() {
+        log.debug("Creating OpenAI ChatModel with model: {}", openaiModelName);
+        return OpenAiChatModel.builder()
+                .baseUrl(openaiUrl)
+                .customHeaders(Map.of(
+                        "Authorization", "Bearer " + openaiApiKey,
+                        "X-Api-Key", openaiApiKey))
+                .apiKey(openaiApiKey)
+                .modelName(openaiModelName)
+                .maxRetries(0)
+                .timeout(Duration.ofMinutes(10))
+                .build();
+    }
+
 }
 
