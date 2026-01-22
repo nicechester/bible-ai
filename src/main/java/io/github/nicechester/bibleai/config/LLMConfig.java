@@ -3,7 +3,6 @@ package io.github.nicechester.bibleai.config;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
-import io.github.nicechester.bibleai.config.LlamaChatModel;
 import io.github.nicechester.bibleai.service.LlamaService;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +15,6 @@ import org.springframework.core.io.ResourceLoader;
 
 import java.time.Duration;
 import java.util.Map;
-import java.util.UUID;
 
 @Log4j2
 @Configuration
@@ -29,9 +27,6 @@ public class LLMConfig {
     @Value("${langchain4j.llm.openai.url:}") private String openaiUrl;
     @Value("${langchain4j.llm.openai.model-name:}") private String openaiModelName;
     @Value("${langchain4j.llm.openai.api-key:}") private String openaiApiKey;
-    
-    @Autowired(required = false)
-    private LlamaService llamaService;
     
     @Autowired
     private ResourceLoader resourceLoader;
@@ -53,20 +48,6 @@ public class LLMConfig {
                 .apiKey(geminiApiKey)
                 .maxRetries(0)
                 .build();
-    }
-    
-    @Bean
-    @Primary
-    @ConditionalOnProperty(name = "langchain4j.llm.provider", havingValue = "llama")
-    public ChatModel llamaChatModel(LlamaService llamaService) {
-        if (llamaService == null || !llamaService.isAvailable()) {
-            throw new IllegalStateException(
-                "Llama provider selected but model is not available. " +
-                "Please configure llm.model.path or set LLM_PROVIDER=gemini to use Gemini instead."
-            );
-        }
-        log.info("Creating Llama ChatModel");
-        return new LlamaChatModel(llamaService);
     }
 
     @Bean

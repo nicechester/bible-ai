@@ -15,6 +15,8 @@ import dev.langchain4j.model.chat.response.ChatResponse;
 import io.github.nicechester.bibleai.service.LlamaService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,7 +24,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Log4j2
+@Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "langchain4j.llm.provider", havingValue = "llama")
 public class LlamaChatModel implements ChatModel {
     
     private final LlamaService llamaService;
