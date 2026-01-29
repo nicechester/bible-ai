@@ -6,21 +6,30 @@ A conversational Bible study agent supporting both Korean Revised Version (KRV) 
 
 ### Core Capabilities
 - **Natural Language Bible Search**: Search and explore the Bible through natural language
+- **Smart RAG System**: Dual intent classification for optimal search and response
 - **Verse Lookup**: Get specific verses by book, chapter, and verse number
 - **Verse Range**: Get multiple verses in a range (e.g., Genesis 1:1-10)
 - **Context-Aware Reading**: Get verses with surrounding context for better understanding
 - **Keyword Search**: Find verses containing specific keywords or phrases
 - **Chapter Reading**: Read entire chapters at once
 - **Keyword Statistics**: Analyze how often words appear across the Bible with filtering options
-- **RAG-Powered Context**: Uses embedded Bible text for semantic understanding
 - **Session Management**: Maintains conversation context across multiple questions
 - **Mermaid Diagrams**: Visual representation of genealogy, relationships, and concepts
+- **Interactive Verse Links**: Click verse references to preview with context
 - **Cursor-like UI**: Split-pane interface with conversation on left, preview on right
+
+### Smart RAG Architecture
+- **Search Intent Classification**: Automatically detects KEYWORD, SEMANTIC, or HYBRID search intent
+- **Context Classification**: Extracts testament/book scope from queries (e.g., "in the Old Testament prophets")
+- **Response Intent Classification**: Determines response format (DIAGRAM, EXPLANATION, LIST, STATISTICS, CONTEXT)
+- **Two-Stage Retrieval**: Bi-encoder candidate retrieval → re-ranking and filtering
+- **Pre-Retrieved Context**: Verses are fetched before LLM invocation for accuracy
 
 ### Advanced Features
 - **Multi-language Support**: Korean (KRV) and English (ASV) Bible versions
 - **Filtered Statistics**: Search by testament (Old Testament/New Testament) and book type (Prophets/Gospels/Epistles)
-- **Semantic Search Tool**: Embedding-based search available as a tool (Reverse RAG pattern)
+- **SQLite Embedding Store**: Fast cold starts with pre-built embedding database
+- **GCS Persistence**: Optional cloud storage for embeddings
 - **Multi-turn Conversations**: Maintains context across multiple questions within a session
 - **Error Recovery**: Automatically clears corrupted sessions to prevent error propagation
 - **Smart Memory Management**: Auto-cleanup to prevent Gemini API function calling issues
@@ -32,27 +41,34 @@ A conversational Bible study agent supporting both Korean Revised Version (KRV) 
 - **AI Framework**: LangChain4j 1.2.0
 - **LLM**: Google Gemini 2.5 Flash (via `langchain4j-google-ai-gemini`)
 - **Bible Data**: 
-  - KRV (Korean Revised Version) - 66 books, 31,173 verses
-  - ASV (American Standard Version) - 66 books, 85,920 verses
-- **RAG**: In-memory embedding store with All-MiniLM-L6-v2 quantized embeddings (ONNX-based)
-  - Uses Reverse RAG pattern: embedding search available as a tool, not automatic
-- **Frontend**: React 18 (in-browser, served as static files)
+  - KRV (Korean Revised Version) - 66 books, 31,024 verses
+  - ASV (American Standard Version) - 66 books, 31,101 verses
+- **RAG**: Smart RAG with dual intent classification
+  - Embedding Model: All-MiniLM-L6-v2 quantized (ONNX-based)
+  - Storage: SQLite (preferred), GCS, or in-memory
+- **Frontend**: Vanilla React 18 via CDN (ES modules), modular CSS/JS
 
 ### Key Components
-- **BibleAgent**: LangChain4j AI service with session-based chat memory
-- **SessionMemoryManager**: Manages isolated conversation history per session (max 10 messages, auto-cleanup after 30 min)
-- **BibleTools**: Tool-calling interface with 9 tools:
-  - `getVerse`: Get specific verse
-  - `getChapter`: Get all verses in a chapter
-  - `getVerseRange`: Get verses in a range
-  - `getVerseWithContext`: Get verse with surrounding context
-  - `searchVerses`: Search by keyword (preferred for Korean text)
-  - `searchByPhrase`: Search by phrase (preferred for Korean text)
-  - `getKeywordStatistics`: Get statistics with optional filters
-  - `searchVersesBySemanticSimilarity`: Semantic search using embeddings (use with caution for Korean)
-  - `getAllBooks`: List all Bible books
-- **BibleService**: Loads and queries Bible data from JSON file
-- **RAGConfig**: Loads and embeds Bible text for semantic retrieval using ONNX quantized model
+
+**Agent & Tools:**
+- **BibleAgent**: LangChain4j AI service with dual intent classification and pre-retrieval
+- **BibleTools**: Tool-calling interface with 10 tools including `advancedBibleSearch`
+
+**Smart Search Services:**
+- **SmartBibleSearchService**: Two-stage retrieval with context-aware filtering
+- **IntentClassifierService**: Classifies search intent (KEYWORD/SEMANTIC/HYBRID)
+- **ContextClassifierService**: Extracts testament/book scope from queries
+- **ResponseIntentClassifier**: Determines response format (DIAGRAM/EXPLANATION/LIST/etc.)
+
+**Data & Storage:**
+- **BibleService**: Loads and queries Bible data from JSON
+- **SqliteEmbeddingStore**: SQLite-backed embedding store for fast cold starts
+- **EmbeddingStoreService**: GCS persistence for embeddings
+- **SessionMemoryManager**: Session-based chat memory (max 10 messages, auto-cleanup)
+
+**Configuration:**
+- **RAGConfig**: Embedding model and store configuration with priority loading (SQLite → GCS → generated)
+- **LLMConfig**: Gemini/OpenAI/Llama model configuration
 
 ## Setup
 
@@ -60,8 +76,13 @@ A conversational Bible study agent supporting both Korean Revised Version (KRV) 
    ```bash
    export GEMINI_API_KEY=your-google-api-key
    export GEMINI_MODEL_NAME=gemini-2.5-flash-lite  # Optional, defaults to gemini-2.5-flash-lite
-   export BIBLE_JSON_PATH=classpath:bible/bible_krv.json  # Optional
-   export BIBLE_ASV_JSON_PATH=classpath:bible/bible_asv.json  # Optional
+   
+   # Embedding store options (for faster startup)
+   export EMBEDDING_SQLITE_ENABLED=true  # Use pre-built SQLite database
+   export EMBEDDING_SQLITE_PATH=/path/to/bible-embeddings.db
+   # Or use GCS
+   export EMBEDDING_GCS_ENABLED=true
+   export EMBEDDING_GCS_BUCKET=your-bucket
    ```
 
 2. **Build and Run**:
@@ -98,16 +119,20 @@ A conversational Bible study agent supporting both Korean Revised Version (KRV) 
 - "Verses about faith"
 - "God's grace"
 
+**Context-Scoped Search:**
+- "Find verses about love in the New Testament"
+- "Where is the centurion mentioned in the Gospels?"
+- "사랑에 대한 구절을 신약에서 찾아줘"
+
 **Statistics with Filters:**
 - "How many times does the word 'love' appear in the Bible?"
 - "How many times does 'love' appear in Old Testament prophets?"
 - "How many times does 'faith' appear in New Testament gospels?"
 
-**Topic Exploration:**
+**Topic Exploration with Diagrams:**
 - "Explain Jesus' genealogy with a diagram"
-- "Explain Jesus' parables"
-- "What are the Ten Commandments?"
-- "What's the difference between Old and New Testament?"
+- "백부장이 나온 구절을 그림으로 설명해줘"
+- "Show me the relationship between the 12 tribes visually"
 
 **Genealogy & Diagrams:**
 - "Explain Jesus' genealogy with a diagram"
@@ -117,66 +142,56 @@ A conversational Bible study agent supporting both Korean Revised Version (KRV) 
 
 ```
 src/main/java/io/github/nicechester/bibleai/
-├── agent/           # BibleAgent (LangChain4j AI service with session management)
+├── agent/           # BibleAgent (dual intent classification, pre-retrieval)
 ├── config/          # Configuration beans:
-│   ├── LLMConfig           # Gemini ChatModel configuration
-│   └── RAGConfig           # Embedding model and RAG setup
-├── controller/       # REST endpoints:
-│   └── BibleController     # POST /api/bible/query, GET /api/bible/config
+│   ├── LLMConfig           # Gemini/OpenAI/Llama configuration
+│   └── RAGConfig           # Embedding store with priority loading
+├── controller/      # REST endpoints:
+│   └── BibleController     # Query, search, verse lookup endpoints
 ├── model/           # Request/Response DTOs:
-│   ├── QueryRequest        # Query with optional sessionId
-│   └── QueryResponse      # Response with summary
+│   ├── QueryRequest/Response   # Query with optional sessionId
+│   ├── SearchIntent           # KEYWORD/SEMANTIC/HYBRID
+│   ├── ContextResult          # Testament/book scope
+│   ├── SearchResponse         # Smart search results
+│   └── VerseResult            # Individual verse result
 ├── service/         # Core services:
-│   ├── SessionMemoryManager    # Session-based chat memory management
-│   └── BibleService            # Bible data loading and querying
+│   ├── SmartBibleSearchService   # Two-stage retrieval
+│   ├── IntentClassifierService   # Search intent classification
+│   ├── ContextClassifierService  # Book/testament scope extraction
+│   ├── ResponseIntentClassifier  # Response format classification
+│   ├── SessionMemoryManager      # Session-based chat memory
+│   ├── BibleService              # Bible data loading and querying
+│   └── EmbeddingStoreService     # GCS persistence
+├── store/           # Embedding stores:
+│   └── SqliteEmbeddingStore      # SQLite-backed store
 └── tool/            # LangChain4j @Tool annotated methods:
-    └── BibleTools              # 8 tools for Bible operations
+    └── BibleTools                # 10 tools for Bible operations
 
 src/main/resources/
 ├── bible/           # Bible data:
-│   ├── bible_krv.json         # Korean Bible (KRV) - 66 books, 31,173 verses
-│   └── bible_asv.json         # English Bible (ASV) - 66 books, 85,920 verses
+│   ├── bible_krv.json         # Korean Bible (KRV) - 66 books
+│   └── bible_asv.json         # English Bible (ASV) - 66 books
 └── static/          # Frontend:
-    └── index.html             # React 18 SPA with session management
-```
-
-## Bible Data
-
-The Bible data is stored in JSON files in `src/main/resources/bible/`:
-
-- **bible_krv.json**: Korean Revised Version (KRV) - 66 books, 31,173 verses
-- **bible_asv.json**: American Standard Version (ASV) - 66 books, 85,920 verses
-
-Both versions are loaded into the embedding store for semantic search. The English version works better with the All-MiniLM-L6-v2 embedding model, improving semantic search accuracy.
-
-The JSON structure:
-
-```json
-{
-  "version": "KRV",
-  "language": "ko",
-  "totalBooks": 66,
-  "books": [
-    {
-      "bookShort": "Gen",
-      "bookName": "Genesis",
-      "testament": 1,
-      "bookNumber": 1,
-      "chapters": [
-        {
-          "chapter": 1,
-          "verses": [
-            {
-              "verse": 1,
-              "title": "Creation",
-              "text": "In the beginning God created the heavens and the earth"
-            }
-          ]
-        }
-      ]
-    }
-  ]
-}
+    ├── index.html             # Main SPA entry
+    ├── css/                   # Modular CSS files
+    │   ├── main.css
+    │   ├── chat.css
+    │   ├── preview.css
+    │   ├── verse-panel.css
+    │   └── mermaid.css
+    ├── js/
+    │   ├── app.js             # Main React app
+    │   ├── components/        # React components
+    │   │   ├── ChatPane.js
+    │   │   ├── PreviewPane.js
+    │   │   ├── VersePanel.js
+    │   │   └── MarkdownRenderer.js
+    │   └── utils/             # Utility modules
+    │       ├── api.js
+    │       ├── bookMappings.js
+    │       └── verseParser.js
+    └── views/
+        └── reader.html        # Chapter reader view
 ```
 
 ## API Endpoints
@@ -187,112 +202,64 @@ Execute natural language queries about the Bible.
 **Request:**
 ```json
 {
-   "query": "Show me Genesis 1:1",
-   "sessionId": "session-1702857890-abc123"  // Optional
- }
+   "query": "백부장이 나온 구절을 그림으로 설명해줘",
+   "sessionId": "session-1702857890-abc123"
+}
+```
+
+### POST `/api/bible/search`
+Smart search with dual intent classification.
+
+**Request:**
+```json
+{
+   "query": "사랑에 대한 구절을 신약에서 찾아줘",
+   "maxResults": 10,
+   "minScore": 0.3
+}
 ```
 
 **Response:**
 ```json
 {
-   "summary": "Genesis 1:1 <Creation> In the beginning God created the heavens and the earth...",
-   "results": null,
-   "sql": null,
-   "success": true
- }
+   "query": "사랑에 대한 구절을 신약에서 찾아줘",
+   "results": [...],
+   "totalResults": 10,
+   "searchMethod": "HYBRID",
+   "detectedContextType": "TESTAMENT",
+   "detectedContext": "신약성경"
+}
 ```
+
+### GET `/api/bible/{book}/{chapter}`
+Get all verses in a chapter.
+
+### GET `/api/bible/{book}/{chapter}/{verse}`
+Get a specific verse.
+
+### GET `/api/bible/{book}/{chapter}/{verse}/context?size=N`
+Get verse with N surrounding verses.
 
 ### GET `/api/bible/config`
 Get Bible configuration and version.
 
-**Response:**
-```json
-{
-   "version": "KRV",
-   "language": "ko",
-   "totalBooks": "66"
- }
-```
+## Available Tools
 
-## Development
-
-### Data Processing
-
-The Bible text files were parsed using Python scripts:
-
-**Korean Bible (KRV):**
-```bash
-cd trashcan/bible
-python3 parse_bible.py
-```
-- Converts EUC-KR encoded files to UTF-8
-- Parses verse format: `book_abbreviation:chapter:verse <title> text`
-- Generates `bible_krv.json` with 66 books and 31,173 verses
-
-**English Bible (ASV):**
-```bash
-cd trashcan/bible
-python3 parse_asv.py
-```
-- Parses ASV text format: `Genesis`, `Chapter 1`, `1 In the beginning...`
-- Generates `bible_asv.json` with 66 books and 85,920 verses
-
-### RAG Configuration
-
-- **Embedding Model**: All-MiniLM-L6-v2 (quantized, ONNX-based)
-- **Bible Versions**: Both Korean (KRV) and English (ASV) loaded into embedding store
-- **Chunk size**: 500 characters
-- **Overlap**: 50 characters
-- **Max results**: 3 retrieved segments per query
-- **Min score**: 0.6 (similarity threshold)
-- **Pattern**: Reverse RAG - embedding search available as a tool, not automatic
-
-**Note**: 
-- The ONNX runtime logs during startup are normal - they indicate the quantized embedding model is being loaded
-- This model runs locally without requiring external API calls
-- English text works better with the embedding model, improving semantic search accuracy
-- Korean text semantic search has limitations; keyword-based tools are preferred
-
-### Available Tools
-
-The AI agent has access to 9 tools:
+The AI agent has access to 10 tools:
 
 1. **getVerse(bookName, chapter, verse)**: Get a specific verse
 2. **getChapter(bookName, chapter)**: Get all verses in a chapter
 3. **getVerseRange(bookName, chapter, startVerse, endVerse)**: Get verses in a range
 4. **getVerseWithContext(bookName, chapter, verse, contextVerses)**: Get verse with surrounding context
-5. **searchVerses(keyword)**: Search for verses containing a keyword (PREFERRED for Korean text)
-6. **searchByPhrase(phrase)**: Search for verses containing a phrase (PREFERRED for Korean text)
+5. **searchVerses(keyword)**: Search for verses containing a keyword
+6. **searchByPhrase(phrase)**: Search for verses containing a phrase
 7. **getKeywordStatistics(keyword, testament, bookType)**: Get statistics with optional filters
-   - `testament`: 1 for Old Testament, 2 for New Testament, null for all
-   - `bookType`: "Prophets", "Gospels", "Epistles", null for all
-8. **searchVersesBySemanticSimilarity(query, maxResults)**: Semantic search using embeddings
-   - Use with caution for Korean text (embedding model limitations)
-   - Works better with English queries
-   - Always verify results are from correct books
-9. **getAllBooks()**: List all Bible books
-
-### Mermaid Diagram Support
-
-The AI can generate Mermaid diagrams for:
-- Genealogy (Jesus' genealogy)
-- Relationships between concepts
-- Visual representations of Bible structures
-
-**Important**: Diagrams use `flowchart TD` syntax with text properly quoted: `A["Text"]`
-
-## Advantages Over Simple Chat
-
-See [USAGE_EXAMPLES.md](./USAGE_EXAMPLES.md) for detailed comparison with simple Gemini chat.
-
-Key advantages:
-- ✅ **Accurate Data Access**: Direct access to actual Bible database (Korean + English, ~117,000 verses)
-- ✅ **Multi-language Support**: Both Korean and English Bible versions
-- ✅ **Statistics**: Precise word frequency analysis with filtering
-- ✅ **Context**: Automatic surrounding verse context
-- ✅ **Structured Search**: Systematic search across entire Bible
-- ✅ **Semantic Search**: Embedding-based search available as a tool (works better with English)
-- ✅ **Conversation**: Session-based multi-turn dialogue support
+8. **advancedBibleSearch(query, maxResults)**: **NEW** - Smart search with context-aware filtering
+   - Automatically classifies search intent (KEYWORD/SEMANTIC/HYBRID)
+   - Extracts book/testament scope from query
+   - Two-stage retrieval with re-ranking
+9. **searchVersesBySemanticSimilarity(query, maxResults)**: Legacy semantic search
+10. **getAllBooks()**: List all Bible books
 
 ## Configuration
 
@@ -302,75 +269,91 @@ Key advantages:
 ```yaml
 langchain4j:
   llm:
+    provider: ${LLM_PROVIDER:gemini}
     gemini:
       model-name: ${GEMINI_MODEL_NAME:gemini-2.5-flash-lite}
       api-key: ${GEMINI_API_KEY:}
 ```
 
-**RAG Settings:**
+**Embedding Store (Priority: SQLite → GCS → Generated):**
 ```yaml
-langchain4j:
-  splitter:
-    text:
-      maxSegmentSize: 500
-      maxOverlapSize: 50
-
 bible:
-  rag:
-    max-results: 3
-    min-score: 0.6
+  embedding:
+    sqlite:
+      enabled: ${EMBEDDING_SQLITE_ENABLED:false}
+      path: ${EMBEDDING_SQLITE_PATH:classpath:embeddings/bible-embeddings.db}
+    gcs:
+      enabled: ${EMBEDDING_GCS_ENABLED:false}
+      bucket: ${EMBEDDING_GCS_BUCKET:bible-ai-embeddings}
+      blob-name: ${EMBEDDING_GCS_BLOB:embeddings/bible-embeddings.json}
 ```
 
-**Bible Data:**
+**Smart Search Settings:**
 ```yaml
 bible:
-  data:
-    json-path: ${BIBLE_JSON_PATH:classpath:bible/bible_krv.json}
-    asv-json-path: ${BIBLE_ASV_JSON_PATH:classpath:bible/bible_asv.json}
-  rag:
-    max-results: 3
-    min-score: 0.6
+  search:
+    candidate-count: ${SEARCH_CANDIDATE_COUNT:50}  # Bi-encoder candidates
+    result-count: ${SEARCH_RESULT_COUNT:10}        # Final results after re-ranking
+    min-score: ${SEARCH_MIN_SCORE:0.3}             # Minimum similarity score
+```
+
+## Smart RAG Flow
+
+```
+User Query
+    │
+    ▼
+┌─────────────────────────────────┐
+│   ResponseIntentClassifier      │  → DIAGRAM / EXPLANATION / LIST / STATISTICS
+└─────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────┐
+│   SmartBibleSearchService       │
+│   ├── ContextClassifier         │  → Extract book/testament scope
+│   ├── IntentClassifier          │  → KEYWORD / SEMANTIC / HYBRID
+│   ├── Two-Stage Retrieval       │
+│   │   ├── Bi-encoder (50 candidates)
+│   │   └── Re-rank & Filter (10 results)
+│   └── Return SearchResponse     │
+└─────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────┐
+│   Route by Response Type        │
+│   ├── STATISTICS/LIST → Direct  │  (No LLM needed)
+│   └── DIAGRAM/EXPLANATION → LLM │  (With pre-retrieved context)
+└─────────────────────────────────┘
 ```
 
 ## Troubleshooting
 
 ### Common Issues
 
-**1. ONNX Runtime Logs**
+**1. Slow Startup (Embedding Generation)**
+- **Cause**: No pre-built embedding database
+- **Fix**: Set `EMBEDDING_SQLITE_ENABLED=true` with a pre-built `.db` file
+- First run will generate embeddings (~30 seconds)
+
+**2. ONNX Runtime Logs**
 - **Cause**: Normal behavior - embedding model initialization
-- **Explanation**: All-MiniLM-L6-v2 quantized model uses ONNX Runtime
 - **Action**: No action needed, these logs are expected
 
-**2. Mermaid Diagram Syntax Errors**
+**3. Mermaid Diagram Syntax Errors**
 - **Cause**: Incorrect Mermaid syntax or character encoding
-- **Fix**: System prompt has been updated to use `flowchart TD` with quoted text
-- **Format**: `A["Text"]` (double quotes required)
+- **Fix**: System prompt uses `flowchart TD` with quoted Korean text: `A["한글텍스트"]`
 
-**3. "parts is null" Error**
-- **Cause**: Complex queries trying to process multiple items simultaneously
-- **Fix**: System prompt updated to handle complex requests more safely
-- **Workaround**: Break complex requests into simpler parts
-
-**4. Session Memory Errors**
-- **Cause**: Corrupted session state
-- **Fix**: Sessions are automatically cleared on errors
-- **Action**: Start a new session with the + button
-
-**5. Gemini API Function Calling Errors**
-- **Cause**: "function call turn comes immediately after a user turn" error
-- **Explanation**: Gemini API requires function calls to follow specific message order
-- **Fix**: Session memory automatically cleared when reaching 8 messages to prevent this
-- **Action**: No action needed - handled automatically
+**4. Wrong Response Type Classification**
+- **Cause**: Query doesn't match response type prototypes
+- **Fix**: Include explicit keywords like "그림", "다이어그램", "통계" for better classification
 
 ### Performance Notes
 
-- Semantic search adds ~100-200ms per query (when used as tool)
-- Session cleanup is non-blocking (scheduled task every 10 minutes)
-- ChatMemory limited to 10 messages per session (reduced to prevent Gemini API issues)
-- Auto-cleanup at 8 messages to prevent function calling errors
-- Embedding model loads once at startup (ONNX initialization)
-- Both Korean and English Bibles loaded into embedding store (~117,000 verses total)
-- Frontend is fully client-side (no server-side rendering)
+- First startup: ~30 seconds (embedding generation) or instant with SQLite
+- Smart search: ~20-50ms per query
+- Session cleanup: non-blocking (scheduled task every 10 minutes)
+- ChatMemory: limited to 10 messages, auto-cleanup at 8 messages
+- Both Korean and English Bibles loaded into embedding store (~62,000 verses total)
 
 ## Additional Resources
 
@@ -387,4 +370,4 @@ This project uses:
 ---
 
 **Author**: Chester Kim  
-**Date**: December 29, 2025
+**Date**: January 29, 2026

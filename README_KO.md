@@ -6,21 +6,30 @@
 
 ### 핵심 기능
 - **자연어 성경 검색**: 자연어로 성경을 검색하고 탐색
+- **Smart RAG 시스템**: 최적의 검색과 응답을 위한 이중 의도 분류
 - **구절 조회**: 책, 장, 절 번호로 특정 구절 조회
 - **구절 범위 조회**: 여러 구절을 범위로 조회 (예: 창세기 1:1-10)
 - **맥락 인식 읽기**: 주변 구절을 포함하여 더 나은 이해를 위한 조회
 - **키워드 검색**: 특정 키워드나 구문이 포함된 구절 찾기
 - **장 읽기**: 전체 장을 한 번에 읽기
 - **키워드 통계**: 필터링 옵션과 함께 성경 전체에서 단어 출현 빈도 분석
-- **RAG 기반 맥락**: 의미 이해를 위한 임베딩된 성경 텍스트 사용
 - **세션 관리**: 여러 질문에 걸쳐 대화 맥락 유지
 - **Mermaid 다이어그램**: 계보, 관계, 개념의 시각적 표현
+- **인터랙티브 구절 링크**: 구절 참조를 클릭하여 맥락과 함께 미리보기
 - **Cursor 스타일 UI**: 왼쪽 대화, 오른쪽 미리보기 분할 패널 인터페이스
+
+### Smart RAG 아키텍처
+- **검색 의도 분류**: 자동으로 KEYWORD, SEMANTIC, HYBRID 검색 의도 감지
+- **맥락 분류**: 쿼리에서 성경 구분/책 범위 추출 (예: "구약 선지서에서")
+- **응답 의도 분류**: 응답 형식 결정 (DIAGRAM, EXPLANATION, LIST, STATISTICS, CONTEXT)
+- **2단계 검색**: Bi-encoder 후보 검색 → 재순위 및 필터링
+- **사전 검색된 맥락**: LLM 호출 전에 정확성을 위해 구절을 먼저 가져옴
 
 ### 고급 기능
 - **다국어 지원**: 한국어(개역개정)와 영어(ASV) 성경 버전
 - **필터링 통계**: 성경 구분(구약/신약) 및 책 유형(선지서/복음서/서신서)으로 검색
-- **의미 검색 도구**: 임베딩 기반 검색을 도구로 제공 (Reverse RAG 패턴)
+- **SQLite 임베딩 저장소**: 사전 빌드된 임베딩 데이터베이스로 빠른 콜드 스타트
+- **GCS 영구 저장**: 임베딩을 위한 선택적 클라우드 스토리지
 - **다중 턴 대화**: 세션 내 여러 질문에 걸쳐 맥락 유지
 - **에러 복구**: 에러 전파를 방지하기 위해 손상된 세션 자동 정리
 - **스마트 메모리 관리**: Gemini API function calling 문제 방지를 위한 자동 정리
@@ -32,27 +41,34 @@
 - **AI 프레임워크**: LangChain4j 1.2.0
 - **LLM**: Google Gemini 2.5 Flash (`langchain4j-google-ai-gemini` 사용)
 - **성경 데이터**: 
-  - 개역개정 (Korean Revised Version) - 66권, 31,173절
-  - ASV (American Standard Version) - 66권, 85,920절
-- **RAG**: All-MiniLM-L6-v2 양자화 임베딩을 사용한 인메모리 임베딩 스토어 (ONNX 기반)
-  - Reverse RAG 패턴 사용: 임베딩 검색을 도구로 제공, 자동이 아님
-- **프론트엔드**: React 18 (브라우저 내부, 정적 파일로 제공)
+  - 개역개정 (Korean Revised Version) - 66권, 31,024절
+  - ASV (American Standard Version) - 66권, 31,101절
+- **RAG**: 이중 의도 분류를 사용하는 Smart RAG
+  - 임베딩 모델: All-MiniLM-L6-v2 양자화 (ONNX 기반)
+  - 저장소: SQLite (권장), GCS, 또는 인메모리
+- **프론트엔드**: CDN을 통한 Vanilla React 18 (ES 모듈), 모듈식 CSS/JS
 
 ### 주요 컴포넌트
-- **BibleAgent**: 세션 기반 채팅 메모리를 가진 LangChain4j AI 서비스
-- **SessionMemoryManager**: 세션별 격리된 대화 기록 관리 (최대 10개 메시지, 30분 후 자동 정리)
-- **BibleTools**: 9개의 도구를 가진 도구 호출 인터페이스:
-  - `getVerse`: 특정 구절 조회
-  - `getChapter`: 장의 모든 구절 조회
-  - `getVerseRange`: 범위 내 구절 조회
-  - `getVerseWithContext`: 주변 맥락과 함께 구절 조회
-  - `searchVerses`: 키워드로 검색 (한글 텍스트에 권장)
-  - `searchByPhrase`: 구문으로 검색 (한글 텍스트에 권장)
-  - `getKeywordStatistics`: 선택적 필터와 함께 통계 조회
-  - `searchVersesBySemanticSimilarity`: 임베딩 기반 의미 검색 (한글에는 제한적)
-  - `getAllBooks`: 모든 성경 책 목록
-- **BibleService**: JSON 파일에서 성경 데이터 로드 및 쿼리
-- **RAGConfig**: ONNX 양자화 모델을 사용하여 의미 검색을 위한 성경 텍스트 로드 및 임베딩
+
+**에이전트 & 도구:**
+- **BibleAgent**: 이중 의도 분류와 사전 검색을 갖춘 LangChain4j AI 서비스
+- **BibleTools**: `advancedBibleSearch`를 포함한 10개 도구의 도구 호출 인터페이스
+
+**Smart 검색 서비스:**
+- **SmartBibleSearchService**: 맥락 인식 필터링을 사용한 2단계 검색
+- **IntentClassifierService**: 검색 의도 분류 (KEYWORD/SEMANTIC/HYBRID)
+- **ContextClassifierService**: 쿼리에서 성경 구분/책 범위 추출
+- **ResponseIntentClassifier**: 응답 형식 결정 (DIAGRAM/EXPLANATION/LIST/등)
+
+**데이터 & 저장소:**
+- **BibleService**: JSON에서 성경 데이터 로드 및 쿼리
+- **SqliteEmbeddingStore**: 빠른 콜드 스타트를 위한 SQLite 기반 임베딩 저장소
+- **EmbeddingStoreService**: 임베딩을 위한 GCS 영구 저장
+- **SessionMemoryManager**: 세션 기반 채팅 메모리 (최대 10개 메시지, 자동 정리)
+
+**설정:**
+- **RAGConfig**: 우선순위 로딩을 사용한 임베딩 모델 및 저장소 설정 (SQLite → GCS → 생성)
+- **LLMConfig**: Gemini/OpenAI/Llama 모델 설정
 
 ## 설치 및 실행
 
@@ -60,8 +76,13 @@
    ```bash
    export GEMINI_API_KEY=your-google-api-key
    export GEMINI_MODEL_NAME=gemini-2.5-flash-lite  # 선택사항, 기본값: gemini-2.5-flash-lite
-   export BIBLE_JSON_PATH=classpath:bible/bible_krv.json  # 선택사항
-   export BIBLE_ASV_JSON_PATH=classpath:bible/bible_asv.json  # 선택사항
+   
+   # 임베딩 저장소 옵션 (더 빠른 시작을 위해)
+   export EMBEDDING_SQLITE_ENABLED=true  # 사전 빌드된 SQLite 데이터베이스 사용
+   export EMBEDDING_SQLITE_PATH=/path/to/bible-embeddings.db
+   # 또는 GCS 사용
+   export EMBEDDING_GCS_ENABLED=true
+   export EMBEDDING_GCS_BUCKET=your-bucket
    ```
 
 2. **빌드 및 실행**:
@@ -98,16 +119,20 @@
 - "믿음에 관한 말씀"
 - "하나님의 은혜"
 
+**범위 지정 검색:**
+- "사랑에 대한 구절을 신약에서 찾아줘"
+- "백부장이 복음서에서 어디에 나와?"
+- "구약 선지서에서 메시아에 대한 예언"
+
 **필터링 통계:**
 - "사랑이라는 단어가 성경에 몇 번 나와?"
 - "사랑이라는 단어가 구약 선지서에 몇 번 나와?"
 - "믿음이 신약 복음서에 몇 번 나와?"
 
-**주제 탐색:**
+**다이어그램과 함께 주제 탐색:**
 - "예수님의 계보를 그림으로 설명해줘"
-- "예수님의 비유를 설명해줘"
-- "십계명이 뭐야?"
-- "구약과 신약의 차이는?"
+- "백부장이 나온 구절을 그림과 함께 설명해줘"
+- "12지파의 관계를 시각적으로 보여줘"
 
 **계보 및 다이어그램:**
 - "예수님의 계보를 그림으로 설명해줘"
@@ -117,66 +142,56 @@
 
 ```
 src/main/java/io/github/nicechester/bibleai/
-├── agent/           # BibleAgent (세션 관리가 있는 LangChain4j AI 서비스)
+├── agent/           # BibleAgent (이중 의도 분류, 사전 검색)
 ├── config/          # 설정 빈:
-│   ├── LLMConfig           # Gemini ChatModel 설정
-│   └── RAGConfig           # 임베딩 모델 및 RAG 설정
+│   ├── LLMConfig           # Gemini/OpenAI/Llama 설정
+│   └── RAGConfig           # 우선순위 로딩을 사용한 임베딩 저장소
 ├── controller/      # REST 엔드포인트:
-│   └── BibleController     # POST /api/bible/query, GET /api/bible/config
+│   └── BibleController     # 쿼리, 검색, 구절 조회 엔드포인트
 ├── model/           # Request/Response DTO:
-│   ├── QueryRequest        # 선택적 sessionId가 있는 쿼리
-│   └── QueryResponse      # 요약이 포함된 응답
+│   ├── QueryRequest/Response   # 선택적 sessionId가 있는 쿼리
+│   ├── SearchIntent           # KEYWORD/SEMANTIC/HYBRID
+│   ├── ContextResult          # 성경 구분/책 범위
+│   ├── SearchResponse         # Smart 검색 결과
+│   └── VerseResult            # 개별 구절 결과
 ├── service/         # 핵심 서비스:
-│   ├── SessionMemoryManager    # 세션 기반 채팅 메모리 관리
-│   └── BibleService            # 성경 데이터 로드 및 쿼리
+│   ├── SmartBibleSearchService   # 2단계 검색
+│   ├── IntentClassifierService   # 검색 의도 분류
+│   ├── ContextClassifierService  # 책/성경 구분 범위 추출
+│   ├── ResponseIntentClassifier  # 응답 형식 분류
+│   ├── SessionMemoryManager      # 세션 기반 채팅 메모리
+│   ├── BibleService              # 성경 데이터 로드 및 쿼리
+│   └── EmbeddingStoreService     # GCS 영구 저장
+├── store/           # 임베딩 저장소:
+│   └── SqliteEmbeddingStore      # SQLite 기반 저장소
 └── tool/            # LangChain4j @Tool 주석 메서드:
-    └── BibleTools              # 성경 작업을 위한 8개 도구
+    └── BibleTools                # 성경 작업을 위한 10개 도구
 
 src/main/resources/
 ├── bible/           # 성경 데이터:
-│   ├── bible_krv.json         # 한국어 성경 (개역개정) - 66권, 31,173절
-│   └── bible_asv.json         # 영어 성경 (ASV) - 66권, 85,920절
+│   ├── bible_krv.json         # 한국어 성경 (개역개정) - 66권
+│   └── bible_asv.json         # 영어 성경 (ASV) - 66권
 └── static/          # 프론트엔드:
-    └── index.html             # 세션 관리가 있는 React 18 SPA
-```
-
-## 성경 데이터
-
-성경 데이터는 `src/main/resources/bible/` 디렉토리에 JSON 파일로 저장됩니다:
-
-- **bible_krv.json**: 개역개정 (한국어) - 66권, 31,173절
-- **bible_asv.json**: ASV (영어) - 66권, 85,920절
-
-두 버전 모두 임베딩 스토어에 로드되어 의미 검색에 사용됩니다. 영어 버전은 All-MiniLM-L6-v2 임베딩 모델과 더 잘 작동하여 의미 검색 정확도를 향상시킵니다.
-
-JSON 구조:
-
-```json
-{
-  "version": "개역개정",
-  "language": "ko",
-  "totalBooks": 66,
-  "books": [
-    {
-      "bookShort": "창",
-      "bookName": "창세기",
-      "testament": 1,
-      "bookNumber": 1,
-      "chapters": [
-        {
-          "chapter": 1,
-          "verses": [
-            {
-              "verse": 1,
-              "title": "천지 창조",
-              "text": "태초에 하나님이 천지를 창조하시니라"
-            }
-          ]
-        }
-      ]
-    }
-  ]
-}
+    ├── index.html             # 메인 SPA 진입점
+    ├── css/                   # 모듈식 CSS 파일
+    │   ├── main.css
+    │   ├── chat.css
+    │   ├── preview.css
+    │   ├── verse-panel.css
+    │   └── mermaid.css
+    ├── js/
+    │   ├── app.js             # 메인 React 앱
+    │   ├── components/        # React 컴포넌트
+    │   │   ├── ChatPane.js
+    │   │   ├── PreviewPane.js
+    │   │   ├── VersePanel.js
+    │   │   └── MarkdownRenderer.js
+    │   └── utils/             # 유틸리티 모듈
+    │       ├── api.js
+    │       ├── bookMappings.js
+    │       └── verseParser.js
+    └── views/
+        └── reader.html        # 장 읽기 뷰
 ```
 
 ## API 엔드포인트
@@ -187,112 +202,64 @@ JSON 구조:
 **요청:**
 ```json
 {
-   "query": "창세기 1장 1절을 보여줘",
-   "sessionId": "session-1702857890-abc123"  // 선택사항
- }
+   "query": "백부장이 나온 구절을 그림으로 설명해줘",
+   "sessionId": "session-1702857890-abc123"
+}
+```
+
+### POST `/api/bible/search`
+이중 의도 분류를 사용한 Smart 검색.
+
+**요청:**
+```json
+{
+   "query": "사랑에 대한 구절을 신약에서 찾아줘",
+   "maxResults": 10,
+   "minScore": 0.3
+}
 ```
 
 **응답:**
 ```json
 {
-   "summary": "창세기 1:1 <천지 창조> 태초에 하나님이 천지를 창조하시니라...",
-   "results": null,
-   "sql": null,
-   "success": true
- }
+   "query": "사랑에 대한 구절을 신약에서 찾아줘",
+   "results": [...],
+   "totalResults": 10,
+   "searchMethod": "HYBRID",
+   "detectedContextType": "TESTAMENT",
+   "detectedContext": "신약성경"
+}
 ```
+
+### GET `/api/bible/{book}/{chapter}`
+장의 모든 구절 조회.
+
+### GET `/api/bible/{book}/{chapter}/{verse}`
+특정 구절 조회.
+
+### GET `/api/bible/{book}/{chapter}/{verse}/context?size=N`
+N개의 주변 구절과 함께 구절 조회.
 
 ### GET `/api/bible/config`
 성경 설정 및 버전 조회.
 
-**응답:**
-```json
-{
-   "version": "개역개정",
-   "language": "ko",
-   "totalBooks": "66"
- }
-```
+## 사용 가능한 도구
 
-## 개발
-
-### 데이터 처리
-
-성경 텍스트 파일은 Python 스크립트를 사용하여 파싱되었습니다:
-
-**한국어 성경 (개역개정):**
-```bash
-cd trashcan/bible
-python3 parse_bible.py
-```
-- EUC-KR 인코딩 파일을 UTF-8로 변환
-- 구절 형식 파싱: `책약자:장:절 <제목> 본문`
-- 66권과 31,173절이 포함된 `bible_krv.json` 생성
-
-**영어 성경 (ASV):**
-```bash
-cd trashcan/bible
-python3 parse_asv.py
-```
-- ASV 텍스트 형식 파싱: `Genesis`, `Chapter 1`, `1 In the beginning...`
-- 66권과 85,920절이 포함된 `bible_asv.json` 생성
-
-### RAG 설정
-
-- **임베딩 모델**: All-MiniLM-L6-v2 (양자화, ONNX 기반)
-- **성경 버전**: 한국어(개역개정)와 영어(ASV) 모두 임베딩 스토어에 로드
-- **청크 크기**: 500자
-- **오버랩**: 50자
-- **최대 결과**: 쿼리당 3개의 검색된 세그먼트
-- **최소 점수**: 0.6 (유사도 임계값)
-- **패턴**: Reverse RAG - 임베딩 검색을 도구로 제공, 자동이 아님
-
-**참고**: 
-- 시작 시 ONNX 런타임 로그는 정상입니다 - 양자화된 임베딩 모델이 로드되고 있음을 나타냅니다
-- 이 모델은 외부 API 호출 없이 로컬에서 실행됩니다
-- 영어 텍스트는 임베딩 모델과 더 잘 작동하여 의미 검색 정확도를 향상시킵니다
-- 한글 텍스트 의미 검색에는 제한이 있으므로 키워드 기반 도구를 우선 사용하는 것이 좋습니다
-
-### 사용 가능한 도구
-
-AI 에이전트는 9개의 도구에 접근할 수 있습니다:
+AI 에이전트는 10개의 도구에 접근할 수 있습니다:
 
 1. **getVerse(bookName, chapter, verse)**: 특정 구절 조회
 2. **getChapter(bookName, chapter)**: 장의 모든 구절 조회
 3. **getVerseRange(bookName, chapter, startVerse, endVerse)**: 범위 내 구절 조회
 4. **getVerseWithContext(bookName, chapter, verse, contextVerses)**: 주변 맥락과 함께 구절 조회
-5. **searchVerses(keyword)**: 키워드가 포함된 구절 검색 (한글 텍스트에 권장)
-6. **searchByPhrase(phrase)**: 구문이 포함된 구절 검색 (한글 텍스트에 권장)
+5. **searchVerses(keyword)**: 키워드가 포함된 구절 검색
+6. **searchByPhrase(phrase)**: 구문이 포함된 구절 검색
 7. **getKeywordStatistics(keyword, testament, bookType)**: 선택적 필터와 함께 통계 조회
-   - `testament`: 1은 구약, 2는 신약, null은 전체
-   - `bookType`: "선지서", "복음서", "서신서", null은 전체
-8. **searchVersesBySemanticSimilarity(query, maxResults)**: 임베딩 기반 의미 검색
-   - 한글 텍스트에는 제한적 (임베딩 모델 한계)
-   - 영어 쿼리에 더 잘 작동
-   - 결과가 올바른 책에서 나왔는지 항상 확인
-9. **getAllBooks()**: 모든 성경 책 목록
-
-### Mermaid 다이어그램 지원
-
-AI는 다음을 위한 Mermaid 다이어그램을 생성할 수 있습니다:
-- 계보 (예수님의 계보)
-- 개념 간의 관계
-- 성경 구조의 시각적 표현
-
-**중요**: 다이어그램은 한글 텍스트를 따옴표로 감싼 `flowchart TD` 구문을 사용합니다: `A["한글텍스트"]`
-
-## 단순 채팅보다 나은 점
-
-간단한 Gemini 채팅과의 상세한 비교는 [USAGE_EXAMPLES.md](./USAGE_EXAMPLES.md)를 참조하세요.
-
-주요 장점:
-- ✅ **정확한 데이터 접근**: 실제 성경 데이터베이스 직접 접근 (한국어 + 영어, 약 117,000절)
-- ✅ **다국어 지원**: 한국어와 영어 성경 버전 모두 지원
-- ✅ **통계**: 필터링과 함께 정확한 단어 빈도 분석
-- ✅ **맥락**: 자동 주변 구절 맥락 제공
-- ✅ **구조화된 검색**: 전체 성경에 걸친 체계적 검색
-- ✅ **의미 검색**: 임베딩 기반 검색을 도구로 제공 (영어에 더 잘 작동)
-- ✅ **대화**: 세션 기반 다중 턴 대화 지원
+8. **advancedBibleSearch(query, maxResults)**: **신규** - 맥락 인식 필터링을 사용한 Smart 검색
+   - 자동으로 검색 의도 분류 (KEYWORD/SEMANTIC/HYBRID)
+   - 쿼리에서 책/성경 구분 범위 추출
+   - 재순위를 사용한 2단계 검색
+9. **searchVersesBySemanticSimilarity(query, maxResults)**: 레거시 의미 검색
+10. **getAllBooks()**: 모든 성경 책 목록
 
 ## 설정
 
@@ -302,75 +269,91 @@ AI는 다음을 위한 Mermaid 다이어그램을 생성할 수 있습니다:
 ```yaml
 langchain4j:
   llm:
+    provider: ${LLM_PROVIDER:gemini}
     gemini:
       model-name: ${GEMINI_MODEL_NAME:gemini-2.5-flash-lite}
       api-key: ${GEMINI_API_KEY:}
 ```
 
-**RAG 설정:**
+**임베딩 저장소 (우선순위: SQLite → GCS → 생성):**
 ```yaml
-langchain4j:
-  splitter:
-    text:
-      maxSegmentSize: 500
-      maxOverlapSize: 50
-
 bible:
-  rag:
-    max-results: 3
-    min-score: 0.6
+  embedding:
+    sqlite:
+      enabled: ${EMBEDDING_SQLITE_ENABLED:false}
+      path: ${EMBEDDING_SQLITE_PATH:classpath:embeddings/bible-embeddings.db}
+    gcs:
+      enabled: ${EMBEDDING_GCS_ENABLED:false}
+      bucket: ${EMBEDDING_GCS_BUCKET:bible-ai-embeddings}
+      blob-name: ${EMBEDDING_GCS_BLOB:embeddings/bible-embeddings.json}
 ```
 
-**성경 데이터:**
+**Smart 검색 설정:**
 ```yaml
 bible:
-  data:
-    json-path: ${BIBLE_JSON_PATH:classpath:bible/bible_krv.json}
-    asv-json-path: ${BIBLE_ASV_JSON_PATH:classpath:bible/bible_asv.json}
-  rag:
-    max-results: 3
-    min-score: 0.6
+  search:
+    candidate-count: ${SEARCH_CANDIDATE_COUNT:50}  # Bi-encoder 후보
+    result-count: ${SEARCH_RESULT_COUNT:10}        # 재순위 후 최종 결과
+    min-score: ${SEARCH_MIN_SCORE:0.3}             # 최소 유사도 점수
+```
+
+## Smart RAG 흐름
+
+```
+사용자 쿼리
+    │
+    ▼
+┌─────────────────────────────────┐
+│   ResponseIntentClassifier      │  → DIAGRAM / EXPLANATION / LIST / STATISTICS
+└─────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────┐
+│   SmartBibleSearchService       │
+│   ├── ContextClassifier         │  → 책/성경 구분 범위 추출
+│   ├── IntentClassifier          │  → KEYWORD / SEMANTIC / HYBRID
+│   ├── 2단계 검색                │
+│   │   ├── Bi-encoder (50개 후보)
+│   │   └── 재순위 & 필터링 (10개 결과)
+│   └── SearchResponse 반환       │
+└─────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────┐
+│   응답 유형별 라우팅            │
+│   ├── STATISTICS/LIST → 직접   │  (LLM 불필요)
+│   └── DIAGRAM/EXPLANATION → LLM│  (사전 검색된 맥락과 함께)
+└─────────────────────────────────┘
 ```
 
 ## 문제 해결
 
 ### 일반적인 문제
 
-**1. ONNX 런타임 로그**
+**1. 느린 시작 (임베딩 생성)**
+- **원인**: 사전 빌드된 임베딩 데이터베이스 없음
+- **수정**: 사전 빌드된 `.db` 파일과 함께 `EMBEDDING_SQLITE_ENABLED=true` 설정
+- 첫 실행 시 임베딩 생성 (~30초)
+
+**2. ONNX 런타임 로그**
 - **원인**: 정상 동작 - 임베딩 모델 초기화
-- **설명**: All-MiniLM-L6-v2 양자화 모델이 ONNX 런타임을 사용
 - **조치**: 조치 불필요, 이러한 로그는 예상된 동작입니다
 
-**2. Mermaid 다이어그램 구문 오류**
+**3. Mermaid 다이어그램 구문 오류**
 - **원인**: 잘못된 Mermaid 구문 또는 한글 문자 인코딩
-- **수정**: 시스템 프롬프트가 따옴표로 감싼 한글 텍스트와 함께 `flowchart TD`를 사용하도록 업데이트됨
-- **형식**: `A["한글텍스트"]` (쌍따옴표 필요)
+- **수정**: 시스템 프롬프트가 한글 텍스트를 따옴표로 감싼 `flowchart TD`를 사용: `A["한글텍스트"]`
 
-**3. "parts is null" 오류**
-- **원인**: 여러 항목을 동시에 처리하려는 복잡한 쿼리
-- **수정**: 시스템 프롬프트가 복잡한 요청을 더 안전하게 처리하도록 업데이트됨
-- **해결 방법**: 복잡한 요청을 더 간단한 부분으로 나누기
-
-**4. 세션 메모리 오류**
-- **원인**: 손상된 세션 상태
-- **수정**: 오류 시 세션이 자동으로 정리됨
-- **조치**: + 버튼으로 새 세션 시작
-
-**5. Gemini API Function Calling 오류**
-- **원인**: "function call turn comes immediately after a user turn" 오류
-- **설명**: Gemini API는 function call이 특정 메시지 순서를 따라야 함
-- **수정**: 메시지가 8개에 도달하면 세션 메모리를 자동으로 정리하여 방지
-- **조치**: 조치 불필요 - 자동으로 처리됨
+**4. 잘못된 응답 유형 분류**
+- **원인**: 쿼리가 응답 유형 프로토타입과 일치하지 않음
+- **수정**: 더 나은 분류를 위해 "그림", "다이어그램", "통계" 같은 명확한 키워드 포함
 
 ### 성능 참고사항
 
-- 의미 검색은 쿼리당 ~100-200ms 추가 (도구로 사용 시)
-- 세션 정리는 논블로킹 (10분마다 스케줄된 작업)
-- ChatMemory는 세션당 10개 메시지로 제한 (Gemini API 제약사항 대응)
-- 8개 메시지에 도달하면 function calling 오류 방지를 위해 자동 정리
-- 임베딩 모델은 시작 시 한 번 로드됨 (ONNX 초기화)
-- 한국어와 영어 성경 모두 임베딩 스토어에 로드됨 (약 117,000절)
-- 프론트엔드는 완전히 클라이언트 사이드 (서버 사이드 렌더링 없음)
+- 첫 시작: ~30초 (임베딩 생성) 또는 SQLite 사용 시 즉시
+- Smart 검색: 쿼리당 ~20-50ms
+- 세션 정리: 논블로킹 (10분마다 스케줄된 작업)
+- ChatMemory: 10개 메시지로 제한, 8개 메시지에서 자동 정리
+- 한국어와 영어 성경 모두 임베딩 저장소에 로드됨 (약 62,000절)
 
 ## 라이선스
 
@@ -378,3 +361,7 @@ bible:
 - 개역개정 성경 텍스트
 - American Standard Version (ASV) 성경 텍스트 (Public Domain)
 
+---
+
+**작성자**: Chester Kim  
+**날짜**: 2026년 1월 29일

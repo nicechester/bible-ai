@@ -9,9 +9,11 @@ import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingSearchResult;
 import dev.langchain4j.store.embedding.EmbeddingStore;
+import io.github.nicechester.bibleai.model.SearchResponse;
 import io.github.nicechester.bibleai.service.BibleService;
 import io.github.nicechester.bibleai.service.BibleService.Book;
 import io.github.nicechester.bibleai.service.BibleService.VerseResult;
+import io.github.nicechester.bibleai.service.SmartBibleSearchService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,6 +52,9 @@ class BibleToolsTest {
 
     @Mock
     private EmbeddingModel embeddingModel;
+
+    @Mock
+    private SmartBibleSearchService smartSearchService;
 
     @InjectMocks
     private BibleTools bibleTools;
@@ -515,6 +520,182 @@ class BibleToolsTest {
         result.setTitle(title);
         result.setText(text);
         return result;
+    }
+
+    // Tests for advancedBibleSearch
+
+    @Test
+    void testAdvancedBibleSearch_Success() {
+        // Given
+        io.github.nicechester.bibleai.model.VerseResult verseResult = 
+            io.github.nicechester.bibleai.model.VerseResult.builder()
+                .reference("요한복음 3:16")
+                .bookName("요한복음")
+                .bookShort("요")
+                .chapter(3)
+                .verse(16)
+                .title("하나님의 사랑")
+                .text("하나님이 세상을 이처럼 사랑하사 독생자를 주셨으니")
+                .rerankedScore(0.85)
+                .build();
+
+        SearchResponse searchResponse = SearchResponse.builder()
+            .query("사랑에 대한 구절")
+            .results(List.of(verseResult))
+            .totalResults(1)
+            .searchTimeMs(100L)
+            .success(true)
+            .searchMethod("SEMANTIC")
+            .build();
+
+        when(smartSearchService.search("사랑에 대한 구절", 10, 0.3, null))
+            .thenReturn(searchResponse);
+
+        // When
+        String result = bibleTools.advancedBibleSearch("사랑에 대한 구절", 10);
+
+        // Then
+        assertNotNull(result);
+        assertTrue(result.contains("사랑에 대한 구절"));
+        assertTrue(result.contains("요한복음 3:16"));
+        assertTrue(result.contains("SEMANTIC"));
+        verify(smartSearchService, times(1)).search("사랑에 대한 구절", 10, 0.3, null);
+    }
+
+    @Test
+    void testAdvancedBibleSearch_WithKeywordIntent() {
+        // Given
+        io.github.nicechester.bibleai.model.VerseResult verseResult = 
+            io.github.nicechester.bibleai.model.VerseResult.builder()
+                .reference("마태복음 8:5")
+                .bookName("마태복음")
+                .bookShort("마")
+                .chapter(8)
+                .verse(5)
+                .text("예수께서 가버나움에 들어가시니 한 백부장이 나아와 간구하여")
+                .rerankedScore(1.0)
+                .build();
+
+        SearchResponse searchResponse = SearchResponse.builder()
+            .query("백부장이 나오는 구절")
+            .results(List.of(verseResult))
+            .totalResults(1)
+            .searchTimeMs(50L)
+            .success(true)
+            .searchMethod("KEYWORD")
+            .extractedKeyword("백부장")
+            .build();
+
+        when(smartSearchService.search("백부장이 나오는 구절", 5, 0.3, null))
+            .thenReturn(searchResponse);
+
+        // When
+        String result = bibleTools.advancedBibleSearch("백부장이 나오는 구절", 5);
+
+        // Then
+        assertNotNull(result);
+        assertTrue(result.contains("KEYWORD"));
+        assertTrue(result.contains("백부장"));
+        assertTrue(result.contains("마태복음 8:5"));
+        verify(smartSearchService, times(1)).search("백부장이 나오는 구절", 5, 0.3, null);
+    }
+
+    @Test
+    void testAdvancedBibleSearch_WithContextFilter() {
+        // Given
+        io.github.nicechester.bibleai.model.VerseResult verseResult = 
+            io.github.nicechester.bibleai.model.VerseResult.builder()
+                .reference("마태복음 5:44")
+                .bookName("마태복음")
+                .chapter(5)
+                .verse(44)
+                .text("나는 너희에게 이르노니 너희 원수를 사랑하며")
+                .rerankedScore(0.75)
+                .build();
+
+        SearchResponse searchResponse = SearchResponse.builder()
+            .query("사복음서에서 사랑에 대한 말씀")
+            .results(List.of(verseResult))
+            .totalResults(1)
+            .searchTimeMs(80L)
+            .success(true)
+            .searchMethod("SEMANTIC")
+            .detectedContext("사복음서")
+            .detectedContextType("BOOK_GROUP")
+            .contextBooks(List.of("마", "막", "눅", "요"))
+            .build();
+
+        when(smartSearchService.search("사복음서에서 사랑에 대한 말씀", 10, 0.3, null))
+            .thenReturn(searchResponse);
+
+        // When
+        String result = bibleTools.advancedBibleSearch("사복음서에서 사랑에 대한 말씀", null);
+
+        // Then
+        assertNotNull(result);
+        assertTrue(result.contains("사복음서"));
+        assertTrue(result.contains("마태복음"));
+    }
+
+    @Test
+    void testAdvancedBibleSearch_NotFound() {
+        // Given
+        SearchResponse searchResponse = SearchResponse.builder()
+            .query("존재하지않는주제")
+            .results(List.of())
+            .totalResults(0)
+            .searchTimeMs(30L)
+            .success(true)
+            .searchMethod("HYBRID")
+            .build();
+
+        when(smartSearchService.search("존재하지않는주제", 10, 0.3, null))
+            .thenReturn(searchResponse);
+
+        // When
+        String result = bibleTools.advancedBibleSearch("존재하지않는주제", null);
+
+        // Then
+        assertNotNull(result);
+        assertTrue(result.contains("No results found"));
+        verify(smartSearchService, times(1)).search("존재하지않는주제", 10, 0.3, null);
+    }
+
+    @Test
+    void testAdvancedBibleSearch_Error() {
+        // Given
+        SearchResponse searchResponse = SearchResponse.builder()
+            .query("오류 테스트")
+            .results(List.of())
+            .totalResults(0)
+            .success(false)
+            .error("Search service unavailable")
+            .build();
+
+        when(smartSearchService.search("오류 테스트", 10, 0.3, null))
+            .thenReturn(searchResponse);
+
+        // When
+        String result = bibleTools.advancedBibleSearch("오류 테스트", null);
+
+        // Then
+        assertNotNull(result);
+        assertTrue(result.contains("Search failed"));
+        assertTrue(result.contains("Search service unavailable"));
+    }
+
+    @Test
+    void testAdvancedBibleSearch_Exception() {
+        // Given
+        when(smartSearchService.search("exception test", 10, 0.3, null))
+            .thenThrow(new RuntimeException("Connection error"));
+
+        // When
+        String result = bibleTools.advancedBibleSearch("exception test", null);
+
+        // Then
+        assertNotNull(result);
+        assertTrue(result.contains("Error"));
     }
 }
 
