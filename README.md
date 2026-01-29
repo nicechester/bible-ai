@@ -397,9 +397,19 @@ flowchart TD
 
 MIT License - see [LICENSE](LICENSE) file for details.
 
+### Bible Text Copyright
+
+| Version | Published | Copyright Status |
+|---------|-----------|------------------|
+| 개역한글판 (KRV-Hangul) | 1961 | **Public Domain** (expired 2011-12-31) |
+| 개역개정판 (KRV-Revised) | 1998 | © 대한성서공회 (until 2068) |
+| ASV (American Standard Version) | 1901 | **Public Domain** |
+
+Source: [대한성서공회 저작권안내](https://www.bskorea.or.kr/bbs/content.php?co_id=subpage2_3_4_1)
+
 This project uses:
-- Korean Revised Version (KRV) Bible text
-- American Standard Version (ASV) Bible text (Public Domain)
+- **개역개정판** (Korean Revised Version - Revised Edition, 1998) - © 대한성서공회
+- **ASV** (American Standard Version) - Public Domain
 
 ---
 

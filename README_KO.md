@@ -391,9 +391,21 @@ flowchart TD
 
 ## 라이선스
 
+MIT License - [LICENSE](LICENSE) 파일 참조.
+
+### 성경 텍스트 저작권
+
+| 역본 | 발행일 | 저작권 상태 |
+|------|--------|-------------|
+| 개역한글판 | 1961년 | **퍼블릭 도메인** (2011-12-31 만료) |
+| 개역개정판 | 1998년 | © 대한성서공회 (2068년까지) |
+| ASV (미국표준역) | 1901년 | **퍼블릭 도메인** |
+
+출처: [대한성서공회 저작권안내](https://www.bskorea.or.kr/bbs/content.php?co_id=subpage2_3_4_1)
+
 이 프로젝트는 다음 성경 텍스트를 사용합니다:
-- 개역개정 성경 텍스트
-- American Standard Version (ASV) 성경 텍스트 (Public Domain)
+- **개역개정판** (1998년) - © 대한성서공회
+- **ASV** (American Standard Version) - 퍼블릭 도메인
 
 ---
 
