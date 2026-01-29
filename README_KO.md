@@ -50,6 +50,47 @@
 
 ### 주요 컴포넌트
 
+```mermaid
+flowchart TB
+    subgraph Frontend["프론트엔드 (React CDN)"]
+        UI["index.html"]
+        VP["VersePanel"]
+        MR["MarkdownRenderer"]
+    end
+    
+    subgraph Controller["컨트롤러"]
+        BC["BibleController"]
+    end
+    
+    subgraph Agent["에이전트 레이어"]
+        BA["BibleAgent"]
+        BT["BibleTools"]
+    end
+    
+    subgraph SmartSearch["Smart 검색 서비스"]
+        SSS["SmartBibleSearchService"]
+        ICS["IntentClassifierService"]
+        CCS["ContextClassifierService"]
+        RIC["ResponseIntentClassifier"]
+    end
+    
+    subgraph Data["데이터 & 저장소"]
+        BS["BibleService"]
+        SES["SqliteEmbeddingStore"]
+        SMM["SessionMemoryManager"]
+    end
+    
+    UI --> BC
+    BC --> BA
+    BA --> BT
+    BA --> RIC
+    BA --> SSS
+    SSS --> ICS
+    SSS --> CCS
+    SSS --> SES
+    BT --> BS
+```
+
 **에이전트 & 도구:**
 - **BibleAgent**: 이중 의도 분류와 사전 검색을 갖춘 LangChain4j AI 서비스
 - **BibleTools**: `advancedBibleSearch`를 포함한 10개 도구의 도구 호출 인터페이스
@@ -299,31 +340,24 @@ bible:
 
 ## Smart RAG 흐름
 
-```
-사용자 쿼리
-    │
-    ▼
-┌─────────────────────────────────┐
-│   ResponseIntentClassifier      │  → DIAGRAM / EXPLANATION / LIST / STATISTICS
-└─────────────────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────┐
-│   SmartBibleSearchService       │
-│   ├── ContextClassifier         │  → 책/성경 구분 범위 추출
-│   ├── IntentClassifier          │  → KEYWORD / SEMANTIC / HYBRID
-│   ├── 2단계 검색                │
-│   │   ├── Bi-encoder (50개 후보)
-│   │   └── 재순위 & 필터링 (10개 결과)
-│   └── SearchResponse 반환       │
-└─────────────────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────┐
-│   응답 유형별 라우팅            │
-│   ├── STATISTICS/LIST → 직접   │  (LLM 불필요)
-│   └── DIAGRAM/EXPLANATION → LLM│  (사전 검색된 맥락과 함께)
-└─────────────────────────────────┘
+```mermaid
+flowchart TD
+    A["사용자 쿼리"] --> B["ResponseIntentClassifier"]
+    B --> |"DIAGRAM/EXPLANATION/LIST/STATISTICS"| C["SmartBibleSearchService"]
+    
+    C --> D["ContextClassifier"]
+    D --> |"책/성경 구분 범위 추출"| E["IntentClassifier"]
+    E --> |"KEYWORD/SEMANTIC/HYBRID"| F["2단계 검색"]
+    
+    F --> G["Bi-encoder: 50개 후보"]
+    G --> H["재순위 & 필터링: 10개 결과"]
+    H --> I{"응답 유형?"}
+    
+    I --> |"STATISTICS/LIST"| J["직접 응답"]
+    I --> |"DIAGRAM/EXPLANATION"| K["LLM + 맥락"]
+    
+    J --> L["사용자에게 반환"]
+    K --> L
 ```
 
 ## 문제 해결

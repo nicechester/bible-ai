@@ -50,6 +50,47 @@ A conversational Bible study agent supporting both Korean Revised Version (KRV) 
 
 ### Key Components
 
+```mermaid
+flowchart TB
+    subgraph Frontend["Frontend (React CDN)"]
+        UI["index.html"]
+        VP["VersePanel"]
+        MR["MarkdownRenderer"]
+    end
+    
+    subgraph Controller
+        BC["BibleController"]
+    end
+    
+    subgraph Agent["Agent Layer"]
+        BA["BibleAgent"]
+        BT["BibleTools"]
+    end
+    
+    subgraph SmartSearch["Smart Search Services"]
+        SSS["SmartBibleSearchService"]
+        ICS["IntentClassifierService"]
+        CCS["ContextClassifierService"]
+        RIC["ResponseIntentClassifier"]
+    end
+    
+    subgraph Data["Data & Storage"]
+        BS["BibleService"]
+        SES["SqliteEmbeddingStore"]
+        SMM["SessionMemoryManager"]
+    end
+    
+    UI --> BC
+    BC --> BA
+    BA --> BT
+    BA --> RIC
+    BA --> SSS
+    SSS --> ICS
+    SSS --> CCS
+    SSS --> SES
+    BT --> BS
+```
+
 **Agent & Tools:**
 - **BibleAgent**: LangChain4j AI service with dual intent classification and pre-retrieval
 - **BibleTools**: Tool-calling interface with 10 tools including `advancedBibleSearch`
@@ -299,31 +340,24 @@ bible:
 
 ## Smart RAG Flow
 
-```
-User Query
-    │
-    ▼
-┌─────────────────────────────────┐
-│   ResponseIntentClassifier      │  → DIAGRAM / EXPLANATION / LIST / STATISTICS
-└─────────────────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────┐
-│   SmartBibleSearchService       │
-│   ├── ContextClassifier         │  → Extract book/testament scope
-│   ├── IntentClassifier          │  → KEYWORD / SEMANTIC / HYBRID
-│   ├── Two-Stage Retrieval       │
-│   │   ├── Bi-encoder (50 candidates)
-│   │   └── Re-rank & Filter (10 results)
-│   └── Return SearchResponse     │
-└─────────────────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────┐
-│   Route by Response Type        │
-│   ├── STATISTICS/LIST → Direct  │  (No LLM needed)
-│   └── DIAGRAM/EXPLANATION → LLM │  (With pre-retrieved context)
-└─────────────────────────────────┘
+```mermaid
+flowchart TD
+    A["User Query"] --> B["ResponseIntentClassifier"]
+    B --> |"DIAGRAM/EXPLANATION/LIST/STATISTICS"| C["SmartBibleSearchService"]
+    
+    C --> D["ContextClassifier"]
+    D --> |"Extract book/testament scope"| E["IntentClassifier"]
+    E --> |"KEYWORD/SEMANTIC/HYBRID"| F["Two-Stage Retrieval"]
+    
+    F --> G["Bi-encoder: 50 candidates"]
+    G --> H["Re-rank & Filter: 10 results"]
+    H --> I{"Response Type?"}
+    
+    I --> |"STATISTICS/LIST"| J["Direct Response"]
+    I --> |"DIAGRAM/EXPLANATION"| K["LLM with Context"]
+    
+    J --> L["Return to User"]
+    K --> L
 ```
 
 ## Troubleshooting
