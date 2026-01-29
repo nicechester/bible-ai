@@ -9,8 +9,10 @@ import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingStore;
+import io.github.nicechester.bibleai.model.SearchResponse;
 import io.github.nicechester.bibleai.service.BibleService;
 import io.github.nicechester.bibleai.service.BibleService.VerseResult;
+import io.github.nicechester.bibleai.service.SmartBibleSearchService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -30,6 +32,7 @@ public class BibleTools {
     @Qualifier("bibleEmbeddingStore")
     private final EmbeddingStore<TextSegment> bibleEmbeddingStore;
     private final EmbeddingModel embeddingModel;
+    private final SmartBibleSearchService smartSearchService;
     
     @Tool("Get a specific Bible verse by book name, chapter, and verse number. Returns the verse text with reference (e.g., '창세기 1:1').")
     public String getVerse(String bookName, int chapter, int verse) {
@@ -190,11 +193,64 @@ public class BibleTools {
         }
     }
     
+    @Tool("Advanced Bible search with automatic intent detection and context filtering. " +
+          "This is the PREFERRED search method - it automatically detects if the query is: " +
+          "- KEYWORD search (looking for specific word/name, e.g., '모세가 나오는 구절') " +
+          "- SEMANTIC search (looking for meaning/concept, e.g., '사랑에 대한 말씀') " +
+          "- HYBRID search (combines both methods) " +
+          "It also detects book/testament context (e.g., '사복음서에서', '신약에서') and filters results accordingly. " +
+          "Use this for any complex search queries.")
+    public String advancedBibleSearch(
+            @P("The search query in natural language") String query,
+            @P(value = "Maximum number of results to return", required = false) Integer maxResults) {
+        log.info("Advanced Bible search: {} (maxResults: {})", query, maxResults);
+        try {
+            int limit = maxResults != null ? maxResults : 10;
+            SearchResponse response = smartSearchService.search(query, limit, 0.3, null);
+            
+            if (!response.isSuccess()) {
+                return "Search failed: " + response.getError();
+            }
+            
+            if (response.getResults().isEmpty()) {
+                return String.format("No results found for: %s", query);
+            }
+            
+            StringBuilder sb = new StringBuilder();
+            sb.append("Search results for '").append(query).append("'\n");
+            sb.append("Method: ").append(response.getSearchMethod());
+            if (response.getExtractedKeyword() != null) {
+                sb.append(" (keyword: ").append(response.getExtractedKeyword()).append(")");
+            }
+            sb.append("\n");
+            if (response.getDetectedContext() != null) {
+                sb.append("Scope: ").append(response.getDetectedContext()).append("\n");
+            }
+            sb.append("Found: ").append(response.getTotalResults()).append(" results\n\n");
+            
+            for (io.github.nicechester.bibleai.model.VerseResult v : response.getResults()) {
+                sb.append("**").append(v.getReference()).append("**");
+                if (v.getTitle() != null && !v.getTitle().isEmpty()) {
+                    sb.append(" <").append(v.getTitle()).append(">");
+                }
+                sb.append("\n").append(v.getText()).append("\n");
+                if (v.getRerankedScore() != null) {
+                    sb.append(String.format("(relevance: %.0f%%)\n", v.getRerankedScore() * 100));
+                }
+                sb.append("\n");
+            }
+            
+            return sb.toString();
+        } catch (Exception e) {
+            log.error("Failed advanced Bible search", e);
+            return "Error: " + e.getMessage();
+        }
+    }
+    
     @Tool("Search Bible verses using semantic similarity (embedding search). " +
           "Use this when you need to find verses that are semantically related to a topic, even if they don't contain the exact keyword. " +
           "This is useful for finding verses about concepts, themes, or ideas. " +
-          "Note: The embedding model has limitations with Korean text, so always verify results are from correct books. " +
-          "If results are from wrong books (e.g., 구약 when asking about 신약), ignore them and use other search tools instead.")
+          "Note: Consider using advancedBibleSearch instead for better results with automatic intent detection.")
     public String searchVersesBySemanticSimilarity(String query, int maxResults) {
         log.info("Searching verses by semantic similarity: {} (maxResults: {})", query, maxResults);
         try {

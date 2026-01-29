@@ -27,6 +27,20 @@ bible:
   rag:
     max-results: 3
     min-score: 0.6
+  # Embedding store configuration (SQLite preferred for fast cold starts)
+  embedding:
+    sqlite:
+      enabled: ${EMBEDDING_SQLITE_ENABLED:false}
+      path: ${EMBEDDING_SQLITE_PATH:classpath:embeddings/bible-embeddings.db}
+    gcs:
+      enabled: ${EMBEDDING_GCS_ENABLED:false}
+      bucket: ${EMBEDDING_GCS_BUCKET:bible-ai-embeddings}
+      blob-name: ${EMBEDDING_GCS_BLOB:embeddings/bible-embeddings.json}
+  # Smart search configuration
+  search:
+    candidate-count: ${SEARCH_CANDIDATE_COUNT:50}
+    result-count: ${SEARCH_RESULT_COUNT:10}
+    min-score: ${SEARCH_MIN_SCORE:0.3}
 
 management:
   endpoints:
