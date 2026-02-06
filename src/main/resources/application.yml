@@ -2,6 +2,12 @@ spring:
   application:
     name: Bible-AI
 
+# Authentication (set AUTH_ENABLED=true to require login)
+auth:
+  enabled: ${AUTH_ENABLED:false}
+  username: ${AUTH_USERNAME:admin}
+  password: ${AUTH_PASSWORD:admin}
+
 langchain4j:
   llm:
     provider: ${LLM_PROVIDER:gemini}  # Options: gemini, openai
