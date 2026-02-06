@@ -1,0 +1,23 @@
+target/
+.git/
+.gitignore
+*.iml
+.idea/
+*.log
+.DS_Store
+*.md
+.vscode/
+*.swp
+*.swo
+*~
+
+# Build artifacts
+build.log
+deploy.log
+
+# Local development files
+.env
+.env.local
+
+# Test output
+test-output/
