@@ -4,21 +4,18 @@ spring:
 
 langchain4j:
   llm:
-    provider: ${LLM_PROVIDER:gemini}  # Options: gemini or llama
+    provider: ${LLM_PROVIDER:gemini}  # Options: gemini, openai
     gemini:
       model-name: ${GEMINI_MODEL_NAME:gemini-2.5-flash-lite}
       api-key: ${GEMINI_API_KEY:}
+    openai:
+      url: ${OPENAI_URL:}
+      model-name: ${OPENAI_MODEL_NAME:}
+      api-key: ${OPENAI_API_KEY:}
   splitter:
     text:
       maxSegmentSize: 500
       maxOverlapSize: 50
-
-# Llama configuration
-llm:
-  model:
-    path: ${LLAMA_MODEL_PATH:classpath:models/model.gguf}  # Path to .gguf model file (default: models directory under resources)
-    ngpu: ${LLAMA_NGPU_LAYERS:0}  # Number of GPU layers (0 = CPU only)
-    temperature: ${LLAMA_TEMPERATURE:0.7}
 
 bible:
   data:
@@ -47,6 +44,7 @@ management:
     web:
       exposure:
         include: health,info
+      base-path: /actuator
   endpoint:
     health:
       show-details: when-authorized

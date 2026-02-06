@@ -3,15 +3,12 @@ package io.github.nicechester.bibleai.config;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
-import io.github.nicechester.bibleai.service.LlamaService;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
-import org.springframework.core.io.ResourceLoader;
 
 import java.time.Duration;
 import java.util.Map;
@@ -21,23 +18,10 @@ import java.util.Map;
 public class LLMConfig {
     @Value("${langchain4j.llm.gemini.model-name:}") private String geminiModelName;
     @Value("${langchain4j.llm.gemini.api-key:}") private String geminiApiKey;
-    @Value("${llm.model.path:}") private String llamaModelPath;
-    @Value("${llm.model.ngpu:0}") private int llamaNgpuLayers;
-    @Value("${llm.model.temperature:0.7}") private float llamaTemperature;
     @Value("${langchain4j.llm.openai.url:}") private String openaiUrl;
     @Value("${langchain4j.llm.openai.model-name:}") private String openaiModelName;
     @Value("${langchain4j.llm.openai.api-key:}") private String openaiApiKey;
-    
-    @Autowired
-    private ResourceLoader resourceLoader;
 
-    @Bean
-    @ConditionalOnProperty(name = "langchain4j.llm.provider", havingValue = "llama")
-    public LlamaService llamaService() {
-        log.info("Creating LlamaService bean (provider is set to llama)");
-        return new LlamaService(llamaModelPath, llamaNgpuLayers, llamaTemperature, resourceLoader);
-    }
-    
     @Bean
     @Primary
     @ConditionalOnProperty(name = "langchain4j.llm.provider", havingValue = "gemini", matchIfMissing = true)
@@ -54,7 +38,7 @@ public class LLMConfig {
     @Primary
     @ConditionalOnProperty(name = "langchain4j.llm.provider", havingValue = "openai")
     public OpenAiChatModel openAiChatModel() {
-        log.debug("Creating OpenAI ChatModel with model: {}", openaiModelName);
+        log.info("Creating OpenAI ChatModel with model: {}", openaiModelName);
         return OpenAiChatModel.builder()
                 .baseUrl(openaiUrl)
                 .customHeaders(Map.of(
@@ -66,6 +50,5 @@ public class LLMConfig {
                 .timeout(Duration.ofMinutes(10))
                 .build();
     }
-
 }
 

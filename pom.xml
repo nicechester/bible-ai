@@ -86,11 +86,6 @@
             <artifactId>langchain4j-ollama</artifactId>
             <version>${langchain4j.version}</version>
         </dependency>
-        <dependency>
-            <groupId>de.kherud</groupId>
-            <artifactId>llama</artifactId>
-            <version>3.4.0</version>
-        </dependency>
         
         <!-- SQLite for embedding store (fast cold starts) -->
         <dependency>
